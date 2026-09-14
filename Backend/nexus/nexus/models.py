@@ -33,10 +33,21 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 		ACADEMIC_ADMIN = 'ACADEMIC_ADMIN', 'Administrador académico'
 		SYSTEM_ADMIN = 'SYSTEM_ADMIN', 'Administrador del sistema'
 
+	class GrammaticalGender(models.TextChoices):
+		MASCULINE = 'MASCULINE', 'Masculino'
+		FEMININE = 'FEMININE', 'Femenino'
+		NEUTRAL = 'NEUTRAL', 'Neutral'
+		UNSPECIFIED = 'UNSPECIFIED', 'No especificado'
+
 	email = models.EmailField(unique=True)
 	first_name = models.CharField(max_length=150)
 	last_name = models.CharField(max_length=150)
 	role = models.CharField(max_length=30, choices=Role.choices, default=Role.STUDENT)
+	grammatical_gender = models.CharField(
+		max_length=20,
+		choices=GrammaticalGender.choices,
+		default=GrammaticalGender.UNSPECIFIED,
+	)
 	is_active = models.BooleanField(default=True)
 	is_staff = models.BooleanField(default=False)
 	created_at = models.DateTimeField(auto_now_add=True)

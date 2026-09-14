@@ -4,11 +4,12 @@ import { RouterLink } from '@angular/router';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
-import { ROLE_LABELS, UserRole } from '../core/auth/auth.models';
 import { AcademicService } from '../core/academic/academic.service';
 import { StudentService } from '../core/students/student.service';
 import { StudentRecord } from '../core/academic/academic.models';
 import { AcademicCommitteeCardComponent } from '../students/academic-committee-card.component';
+import { formatWelcomeGreeting } from '../shared/presentation/grammatical-copy';
+import { getRoleLabelByGender } from '../shared/presentation/role-labels';
 
 @Component({
   selector: 'app-home',
@@ -25,9 +26,16 @@ export class Home implements OnInit {
   protected estudiantes: StudentRecord[] = [];
   protected cargandoEstudiantes = false;
 
+  getWelcomeText(): string {
+    const user = this.auth.user();
+    return formatWelcomeGreeting(
+      user?.first_name || user?.email,
+      user?.grammatical_gender,
+    );
+  }
+
   getRoleLabel(role?: string): string {
-    if (!role) return '';
-    return ROLE_LABELS[role as UserRole] || role;
+    return getRoleLabelByGender(role, this.auth.user()?.grammatical_gender);
   }
 
   ngOnInit(): void {

@@ -32,6 +32,7 @@ class AuthenticationApiTests(APITestCase):
         self.assertIn('token', response.data)
         self.assertEqual(response.data['role'], 'STUDENT')
         self.assertEqual(response.data['email'], self.user.email)
+        self.assertEqual(response.data['grammatical_gender'], 'UNSPECIFIED')
         self.assertNotIn('password', response.data)
 
     def test_session_profile_includes_effective_permissions(self):
@@ -695,4 +696,29 @@ class SuperAdminApiTests(APITestCase):
     def test_system_admin_cannot_access_academic_summary(self):
         res = self.client.get(f'/api/students/{self.student.id}/academic-summary/')
         self.assertEqual(res.status_code, 403)
+
+    def test_user_serializer_and_registration_support_grammatical_gender(self):
+        response = self.client.post(
+            '/api/auth/register/',
+            {
+                'first_name': 'Valeria',
+                'last_name': 'Rios',
+                'email': 'valeria@example.com',
+                'password': 'Segura-12345',
+                'matricula': 'DOC-099',
+                'programa_doctoral': 'Doctorado en Ciencias',
+                'cohorte': '2026',
+                'grammatical_gender': 'FEMININE',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['grammatical_gender'], 'FEMININE')
+
+        token = response.data['token']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
+        me_response = self.client.get('/api/auth/me/')
+        self.assertEqual(me_response.status_code, 200)
+        self.assertEqual(me_response.data['grammatical_gender'], 'FEMININE')
+
 

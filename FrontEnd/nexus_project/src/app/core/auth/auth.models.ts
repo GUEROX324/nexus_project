@@ -1,3 +1,5 @@
+import { GrammaticalGender } from '../../shared/presentation/grammatical-copy';
+
 export interface AuthenticatedUser {
   id: number;
   email: string;
@@ -6,6 +8,7 @@ export interface AuthenticatedUser {
   role: UserRole;
   roles: UserRole[];
   permissions: Permission[];
+  grammatical_gender?: GrammaticalGender;
 }
 
 export type Permission =
@@ -46,6 +49,7 @@ export interface RegistrationData extends LoginCredentials {
   matricula: string;
   programa_doctoral: string;
   cohorte: string;
+  grammatical_gender?: GrammaticalGender;
 }
 
 export interface LoginResponse extends AuthenticatedUser {

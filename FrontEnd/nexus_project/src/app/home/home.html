@@ -16,7 +16,7 @@
 
   @if (auth.user(); as user) {
     <section aria-label="Informacion de sesion" class="user-card">
-      <p>Bienvenido, {{ user.first_name || user.email }}.</p>
+      <p>{{ getWelcomeText() }}</p>
       <p class="role">Rol: {{ getRoleLabel(user.role) }}</p>
 
       <div class="actions-row">

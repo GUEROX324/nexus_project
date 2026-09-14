@@ -34,7 +34,17 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ('id', 'email', 'first_name', 'last_name', 'role', 'roles', 'permissions', 'student_id')
+        fields = (
+            'id',
+            'email',
+            'first_name',
+            'last_name',
+            'role',
+            'roles',
+            'permissions',
+            'student_id',
+            'grammatical_gender',
+        )
 
     def get_roles(self, user):
         return [user.role]
@@ -65,6 +75,11 @@ class InstitutionalUserCreateSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False)
+    grammatical_gender = serializers.ChoiceField(
+        choices=CustomUser.GrammaticalGender.choices,
+        required=False,
+        default=CustomUser.GrammaticalGender.UNSPECIFIED,
+    )
     role = serializers.ChoiceField(choices=[
         (CustomUser.Role.TUTOR, 'Tutor'),
         (CustomUser.Role.COMMITTEE_MEMBER, 'Miembro del comité'),
@@ -304,6 +319,11 @@ class StudentCreateSerializer(serializers.Serializer):
     programa_doctoral = serializers.CharField(max_length=255)
     fecha_ingreso = serializers.DateField()
     cohorte = serializers.CharField(max_length=20)
+    grammatical_gender = serializers.ChoiceField(
+        choices=CustomUser.GrammaticalGender.choices,
+        required=False,
+        default=CustomUser.GrammaticalGender.UNSPECIFIED,
+    )
 
     def validate_email(self, value):
         normalized_email = value.lower()
@@ -428,6 +448,11 @@ class RegistrationSerializer(serializers.Serializer):
     matricula = serializers.CharField(max_length=9, validators=[MATRICULA_REGEX_VALIDATOR])
     programa_doctoral = serializers.CharField(max_length=255)
     cohorte = serializers.CharField(max_length=20)
+    grammatical_gender = serializers.ChoiceField(
+        choices=CustomUser.GrammaticalGender.choices,
+        required=False,
+        default=CustomUser.GrammaticalGender.UNSPECIFIED,
+    )
 
     def validate_email(self, value):
         normalized_email = value.lower()
