@@ -49,18 +49,23 @@ class StudentRBACRelationVisibilityTests(APITestCase):
             is_active=True,
         )
 
-    def test_coordinator_and_admin_see_all_students(self):
+    def test_coordinator_sees_all_students(self):
         token = Token.objects.create(user=self.coordinator)
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.data), 2)
 
+    def test_system_admin_cannot_read_academic_students(self):
         admin_token = Token.objects.create(user=self.admin)
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
-        res = self.client.get('/api/v1/students/')
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.data), 2)
+
+        listed = self.client.get('/api/v1/students/')
+        retrieved = self.client.get(f'/api/v1/students/{self.student_1.id}/')
+
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.data, [])
+        self.assertEqual(retrieved.status_code, 404)
 
     def test_tutor_sees_only_assigned_students(self):
         token = Token.objects.create(user=self.tutor_1)
@@ -103,6 +108,18 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         view.request = req
         qs = view.get_queryset()
         self.assertEqual(list(qs), [self.student_1])
+
+    def test_student_mutations_are_not_exposed(self):
+        token = Token.objects.create(user=self.coordinator)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        url = f'/api/v1/students/{self.student_1.id}/'
+
+        for method in ('put', 'patch', 'delete'):
+            with self.subTest(method=method):
+                response = getattr(self.client, method)(url, {}, format='json')
+                self.assertEqual(response.status_code, 405)
+
+        self.assertTrue(Student.objects.filter(pk=self.student_1.pk).exists())
 
 
 class AuthenticationApiTests(APITestCase):

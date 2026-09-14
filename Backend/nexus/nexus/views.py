@@ -1,5 +1,5 @@
 from django.contrib.auth import logout
-from rest_framework import status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -262,7 +262,12 @@ class StudentRecordView(APIView):
         return Response(StudentRecordSerializer(student).data)
 
 
-class StudentViewSet(viewsets.ModelViewSet):
+class StudentViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     serializer_class = StudentRecordSerializer
@@ -276,20 +281,15 @@ class StudentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user or not user.is_authenticated:
             return Student.objects.none()
-        if user.is_superuser or user.role in [
-            CustomUser.Role.PROGRAM_COORDINATOR,
-            CustomUser.Role.SYSTEM_ADMIN,
-            CustomUser.Role.ACADEMIC_ADMIN,
-            'COORDINADOR',
-            'ADMIN',
-        ]:
+        permissions = permissions_for_user(user)
+        if 'academic.read.global' in permissions:
             return Student.objects.all().order_by('id')
-        elif user.role in [CustomUser.Role.TUTOR, CustomUser.Role.COMMITTEE_MEMBER]:
+        elif 'records.read.assigned' in permissions:
             return Student.objects.filter(
                 committee_relationships__user=user,
                 committee_relationships__is_active=True,
             ).distinct().order_by('id')
-        elif user.role in [CustomUser.Role.STUDENT, 'ESTUDIANTE']:
+        elif 'records.read.own' in permissions:
             return Student.objects.filter(user=user).order_by('id')
         return Student.objects.none()
 
