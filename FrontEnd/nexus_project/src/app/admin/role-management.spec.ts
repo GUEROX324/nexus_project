@@ -26,7 +26,7 @@ describe('RoleManagement', () => {
 
   it('loads users and displays their role', () => {
     expect(fixture.nativeElement.textContent).toContain('student@example.com');
-    expect(fixture.nativeElement.textContent).toContain('STUDENT');
+    expect(fixture.nativeElement.textContent).toContain('Estudiante');
   });
 
   it('updates the user row after assigning a role', () => {
@@ -41,7 +41,7 @@ describe('RoleManagement', () => {
     });
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('TUTOR');
+    expect(fixture.nativeElement.textContent).toContain('Asesor / Tutor');
   });
 
   it('does not allow changing the protected administrator role', () => {
@@ -52,6 +52,7 @@ describe('RoleManagement', () => {
     }, 'STUDENT');
 
     http.expectNone('http://localhost:8000/api/auth/users/2/role/');
+    expect(component).toBeTruthy();
   });
 
   it('keeps the confirmed role and shows an error when assigning fails', () => {

@@ -17,10 +17,16 @@ export interface CommitteeAssignment {
   user_email: string;
   student: number;
   student_name: string;
-  rol_comite: 'ASESOR_PRINCIPAL' | 'COASESOR' | 'VOCAL' | 'SECRETARIO';
+  rol_comite: 'ASESOR_PRINCIPAL' | 'COASESOR' | 'MIEMBRO_COMITE';
   fecha_asignacion: string;
   is_active: boolean;
 }
+
+export const COMMITTEE_ROLE_LABELS: Record<string, string> = {
+  ASESOR_PRINCIPAL: 'Asesor principal',
+  COASESOR: 'Coasesor',
+  MIEMBRO_COMITE: 'Miembro del comité',
+};
 
 export type AdminStudent = StudentRecord;
 

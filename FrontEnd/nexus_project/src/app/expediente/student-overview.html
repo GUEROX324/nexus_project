@@ -204,7 +204,76 @@
 
         <!-- 6. Tarjeta Última Tutoría -->
         <article class="card tutoring-card">
-          <h2 class="card-title">Última Tutoría</h2>
+          <div class="card-header-row">
+            <h2 class="card-title">Última Tutoría</h2>
+            @if (auth.hasPermission('tutoring.create')) {
+              <button
+                type="button"
+                class="btn-toggle-sem"
+                (click)="mostrarFormTutoria = !mostrarFormTutoria"
+                aria-expanded="false"
+              >
+                {{ mostrarFormTutoria ? 'Cancelar' : '+ Registrar tutoría' }}
+              </button>
+            }
+          </div>
+
+          @if (mostrarFormTutoria) {
+            <form [formGroup]="tutoriaForm" (ngSubmit)="registrarTutoria()" class="semester-form">
+              <div class="form-row">
+                <div class="field">
+                  <label for="tut-semestre">Semestre</label>
+                  <select id="tut-semestre" formControlName="semester">
+                    @for (s of overview.semesters; track s.id) {
+                      <option [value]="s.id">Semestre {{ s.numero }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="tut-fecha">Fecha de sesión</label>
+                  <input id="tut-fecha" type="date" formControlName="fecha_sesion" />
+                </div>
+                <div class="field">
+                  <label for="tut-modalidad">Modalidad</label>
+                  <select id="tut-modalidad" formControlName="modalidad">
+                    <option value="PRESENCIAL">Presencial</option>
+                    <option value="VIRTUAL">Virtual</option>
+                    <option value="HIBRIDA">Híbrida</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field" style="width: 100%;">
+                  <label for="tut-resumen">Resumen de la sesión</label>
+                  <input id="tut-resumen" type="text" formControlName="resumen" placeholder="Resumen de acuerdos y avances..." />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="tut-prox-fecha">Próxima reunión (opcional)</label>
+                  <input id="tut-prox-fecha" type="date" formControlName="proxima_reunion_fecha" />
+                </div>
+                <div class="field">
+                  <label for="tut-prox-notas">Notas próxima reunión (opcional)</label>
+                  <input id="tut-prox-notas" type="text" formControlName="proxima_reunion_notas" placeholder="Temas a revisar..." />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn-cancel" (click)="mostrarFormTutoria = false">Cancelar</button>
+                <button type="submit" class="btn-submit" [disabled]="guardandoTutoria">
+                  {{ guardandoTutoria ? 'Registrando...' : 'Registrar tutoría' }}
+                </button>
+              </div>
+            </form>
+          }
+
+          @if (errorTutoria) {
+            <p class="error-msg" role="alert" style="color: #dc2626; margin-top: 0.5rem;">{{ errorTutoria }}</p>
+          }
+          @if (exitoTutoria) {
+            <p class="success-msg" role="status" style="color: #16a34a; margin-top: 0.5rem;">{{ exitoTutoria }}</p>
+          }
+
           @if (overview.last_tutoring) {
             <div class="tutoring-details">
               <div class="tutoring-meta">

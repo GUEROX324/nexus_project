@@ -2,8 +2,8 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, finalize } from 'rxjs';
 import { AdminService } from './admin.service';
-import { AdminStudent, CommitteeAssignment } from './admin.models';
-import { AuthenticatedUser } from '../core/auth/auth.models';
+import { AdminStudent, COMMITTEE_ROLE_LABELS, CommitteeAssignment } from './admin.models';
+import { AuthenticatedUser, ROLE_LABELS, UserRole } from '../core/auth/auth.models';
 
 @Component({
   selector: 'app-committee-management',
@@ -22,6 +22,14 @@ export class CommitteeManagement {
 
   constructor() {
     this.loadData();
+  }
+
+  getRoleLabel(role: string): string {
+    return ROLE_LABELS[role as UserRole] || role;
+  }
+
+  getCommitteeRoleLabel(role: string): string {
+    return COMMITTEE_ROLE_LABELS[role] || role;
   }
 
   createAssignment(): void {

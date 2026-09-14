@@ -33,15 +33,32 @@ export class RegistroEstudiante {
   protected showPassword = false;
 
   protected readonly formulario = this.fb.nonNullable.group({
-    first_name: ['', Validators.required],
-    last_name: ['', Validators.required],
+    first_name: ['', [Validators.required, Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
+    last_name: ['', [Validators.required, Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required],
-    matricula: ['', Validators.required],
+    matricula: ['', [Validators.required, Validators.maxLength(9), Validators.pattern(/^[a-zA-Z0-9-]{1,9}$/)]],
     programa_doctoral: ['', Validators.required],
     fecha_ingreso: ['', Validators.required],
     cohorte: ['', Validators.required],
   });
+
+  bloquearNumeros(event: KeyboardEvent): void {
+    if (event.key >= '0' && event.key <= '9') {
+      event.preventDefault();
+    }
+  }
+
+  filtrarNumeros(event: Event, controlName: 'first_name' | 'last_name'): void {
+    const input = event.target as HTMLInputElement;
+    if (input) {
+      const sanitized = input.value.replace(/[0-9]/g, '');
+      if (input.value !== sanitized) {
+        input.value = sanitized;
+        this.formulario.get(controlName)?.setValue(sanitized);
+      }
+    }
+  }
 
   registrar(): void {
     

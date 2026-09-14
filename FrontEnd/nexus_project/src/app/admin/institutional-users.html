@@ -1,9 +1,12 @@
 <main>
+  <div style="margin-bottom: 1rem;">
+    <a href="/home" style="color: #4338ca; text-decoration: none; font-weight: 500;">← Volver al inicio</a>
+  </div>
   <h1>Cuentas institucionales</h1>
   <p>Crea cuentas para asesores, miembros del comité, coordinadores y administradores académicos.</p>
   <form (ngSubmit)="createUser()">
-    <label>Nombre <input name="first_name" [(ngModel)]="form.first_name" required></label>
-    <label>Apellidos <input name="last_name" [(ngModel)]="form.last_name" required></label>
+    <label>Nombre <input name="first_name" [(ngModel)]="form.first_name" (keydown)="bloquearNumeros($event)" (input)="filtrarNumeros($event, 'first_name')" pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$" title="Solo se permiten letras y espacios" required></label>
+    <label>Apellidos <input name="last_name" [(ngModel)]="form.last_name" (keydown)="bloquearNumeros($event)" (input)="filtrarNumeros($event, 'last_name')" pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$" title="Solo se permiten letras y espacios" required></label>
     <label>Correo institucional <input name="email" type="email" [(ngModel)]="form.email" required></label>
     <label>Contraseña temporal
       <div class="password-field-wrapper">
@@ -30,7 +33,7 @@
     </label>
     <label>Rol
       <select name="role" [(ngModel)]="form.role">
-        @for (role of roles; track role) { <option [value]="role">{{ role }}</option> }
+        @for (role of roles; track role) { <option [value]="role">{{ getRoleLabel(role) }}</option> }
       </select>
     </label>
     <button type="submit" [disabled]="saving">{{ saving ? 'Creando...' : 'Crear cuenta' }}</button>

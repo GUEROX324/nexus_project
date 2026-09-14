@@ -7,12 +7,16 @@ ROLE_PERMISSIONS = {
     CustomUser.Role.STUDENT: {'records.read.own'},
     CustomUser.Role.TUTOR: {'records.read.assigned', 'tutoring.create'},
     CustomUser.Role.COMMITTEE_MEMBER: {'records.read.assigned', 'tutoring.create'},
-    CustomUser.Role.PROGRAM_COORDINATOR: {'academic.read.global', 'students.create', 'semesters.manage', 'records.read.assigned'},
-    CustomUser.Role.ACADEMIC_ADMIN: {'users.role.assign', 'academic.read.global', 'semesters.manage'},
-    CustomUser.Role.SYSTEM_ADMIN: {
-        'users.role.assign',
+    CustomUser.Role.PROGRAM_COORDINATOR: {
+        'academic.read.global',
         'students.create',
         'semesters.manage',
+        'records.read.assigned',
+        'committee.manage',
+    },
+    CustomUser.Role.ACADEMIC_ADMIN: {'users.role.assign', 'academic.read.global'},
+    CustomUser.Role.SYSTEM_ADMIN: {
+        'users.role.assign',
     },
 }
 
@@ -41,6 +45,11 @@ class CanCreateTutoring(BasePermission):
 class CanCreateStudent(BasePermission):
     def has_permission(self, request, view):
         return 'students.create' in permissions_for_user(request.user)
+
+
+class CanManageCommittee(BasePermission):
+    def has_permission(self, request, view):
+        return 'committee.manage' in permissions_for_user(request.user)
 
 
 class CanManageSemesters(BasePermission):

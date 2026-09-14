@@ -98,7 +98,7 @@ def populate():
         students_info = [
             {
                 "user": est_user1,
-                "matricula": "DOC-2024-001",
+                "matricula": "DOC240001",
                 "nombre_completo": "Ana Laura Morales Vega",
                 "programa_doctoral": "Doctorado en Ciencias Computacionales",
                 "fecha_ingreso": datetime.date(2024, 1, 15),
@@ -110,7 +110,7 @@ def populate():
             },
             {
                 "user": est_user2,
-                "matricula": "DOC-2024-002",
+                "matricula": "DOC240002",
                 "nombre_completo": "Carlos Mendoza Ruiz",
                 "programa_doctoral": "Doctorado en Inteligencia Artificial",
                 "fecha_ingreso": datetime.date(2024, 8, 15),
@@ -122,7 +122,7 @@ def populate():
             },
             {
                 "user": est_user3,
-                "matricula": "DOC-2025-001",
+                "matricula": "DOC250001",
                 "nombre_completo": "Mariana Castillo Ríos",
                 "programa_doctoral": "Doctorado en Sistemas y Ciberseguridad",
                 "fecha_ingreso": datetime.date(2025, 1, 15),
@@ -134,27 +134,27 @@ def populate():
             },
             {
                 "user": est_user4,
-                "matricula": "DOC-2025-002",
+                "matricula": "DOC250002",
                 "nombre_completo": "Diego Armando Fuentes Solís",
                 "programa_doctoral": "Doctorado en Ciencias Computacionales",
                 "fecha_ingreso": datetime.date(2025, 8, 15),
                 "cohorte": "2025-B",
                 "semestres_count": 1,
-                "tutor": tutor_test,
-                "coadvisor": secretary1,
-                "thesis_pct": 15,
+                "tutor": tutor1,
+                "coadvisor": coadvisor1,
+                "thesis_pct": 10,
             },
             {
                 "user": est_user5,
-                "matricula": "305065465406",
+                "matricula": "DOC260001",
                 "nombre_completo": "Alejandro Zárate Jr.",
-                "programa_doctoral": "Doctorado en Ciencias",
+                "programa_doctoral": "Doctorado en Inteligencia Artificial",
                 "fecha_ingreso": datetime.date(2026, 1, 15),
                 "cohorte": "2026-A",
                 "semestres_count": 1,
-                "tutor": tutor_test,
-                "coadvisor": coadvisor1,
-                "thesis_pct": 20,
+                "tutor": tutor2,
+                "coadvisor": vocal1,
+                "thesis_pct": 5,
             },
         ]
 
@@ -218,11 +218,11 @@ def populate():
                 rol_comite=AcademicCommittee.Role.CO_ADVISOR,
                 defaults={"fecha_asignacion": today - datetime.timedelta(days=14), "is_active": True},
             )
-            # Vocal
+            # Miembro del Comité
             ac3, _ = AcademicCommittee.objects.update_or_create(
                 student=student,
                 user=vocal1,
-                rol_comite=AcademicCommittee.Role.VOCAL,
+                rol_comite=AcademicCommittee.Role.COMMITTEE_MEMBER,
                 defaults={"fecha_asignacion": today - datetime.timedelta(days=14), "is_active": True},
             )
 

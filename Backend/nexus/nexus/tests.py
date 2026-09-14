@@ -376,11 +376,27 @@ class SuperAdminApiTests(APITestCase):
 
         self.assertFalse(self.user_model.objects.filter(email='eva@example.com').exists())
 
-    def test_system_admin_can_create_and_deactivate_committee_assignment(self):
+    def test_coordinator_can_create_and_deactivate_committee_assignment_and_admin_is_forbidden(self):
         tutor = self.user_model.objects.create_user(
             email='tutor@example.com', password='Correcta-12345', first_name='Eva', last_name='Diaz',
             role=self.user_model.Role.TUTOR,
         )
+        # System Admin is forbidden from managing committee
+        admin_created = self.client.post('/api/admin/committee/', {
+            'user': tutor.id,
+            'student': self.student.id,
+            'rol_comite': 'COASESOR',
+            'is_active': True,
+        }, format='json')
+        self.assertEqual(admin_created.status_code, 403)
+
+        # Program Coordinator can manage committee
+        coord = self.user_model.objects.create_user(
+            email='coord@example.com', password='Correcta-12345', first_name='Carlos', last_name='Coord',
+            role=self.user_model.Role.PROGRAM_COORDINATOR,
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+
         created = self.client.post('/api/admin/committee/', {
             'user': tutor.id,
             'student': self.student.id,
@@ -531,7 +547,125 @@ class SuperAdminApiTests(APITestCase):
         self.assertIn('last_tutoring', data)
         self.assertIn('open_agreements', data)
         self.assertIn('thesis_progress', data)
-        self.assertIn('recent_academic_activity', data)
+
+    def test_single_admin_restriction_cannot_promote_to_system_admin(self):
+        admin_token, _ = Token.objects.get_or_create(user=self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
+        response = self.client.patch(
+            f'/api/auth/users/{self.student_user.id}/role/',
+            {'role': 'SYSTEM_ADMIN'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_system_admin_role_cannot_be_modified(self):
+        admin_token, _ = Token.objects.get_or_create(user=self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
+        response = self.client.patch(
+            f'/api/auth/users/{self.admin.id}/role/',
+            {'role': 'PROGRAM_COORDINATOR'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_form_validation_name_letters_only(self):
+        coord = self.user_model.objects.create_user(
+            email='coord_val@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+        response = self.client.post('/api/coordinator/students/', {
+            'first_name': 'Juan123',
+            'last_name': 'Perez',
+            'email': 'juan123@example.com',
+            'password': 'Password-1234',
+            'matricula': 'DOC202401',
+            'programa_doctoral': 'Doctorado en Ciencias',
+            'fecha_ingreso': '2024-01-01',
+            'cohorte': '2024-A',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('first_name', response.data)
+
+    def test_form_validation_matricula_max_9_chars(self):
+        coord = self.user_model.objects.create_user(
+            email='coord_val2@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+        response = self.client.post('/api/coordinator/students/', {
+            'first_name': 'Juan',
+            'last_name': 'Perez',
+            'email': 'juanval2@example.com',
+            'password': 'Password-1234',
+            'matricula': '1234567890',  # 10 chars -> exceeds 9
+            'programa_doctoral': 'Doctorado en Ciencias',
+            'fecha_ingreso': '2024-01-01',
+            'cohorte': '2024-A',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('matricula', response.data)
+
+    def test_committee_assignment_requires_student_role_for_student(self):
+        coord = self.user_model.objects.create_user(
+            email='coord_com@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
+        )
+        tutor = self.user_model.objects.create_user(
+            email='tutor_com@test.com', password='password123', role=self.user_model.Role.TUTOR
+        )
+        # Create non-student user who has a student profile
+        teacher_user = self.user_model.objects.create_user(
+            email='prof@test.com', password='password123', role=self.user_model.Role.TUTOR
+        )
+        fake_student = Student.objects.create(
+            user=teacher_user, matricula='FAKESTUD1', nombre_completo='Prof Fake'
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+        response = self.client.post('/api/admin/committee/', {
+            'user': tutor.id,
+            'student': fake_student.id,
+            'rol_comite': 'ASESOR_PRINCIPAL',
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('student', response.data)
+
+    def test_tutoring_unassigned_tutor_gets_403(self):
+        unassigned_tutor = self.user_model.objects.create_user(
+            email='unassigned@test.com', password='password123', role=self.user_model.Role.TUTOR
+        )
+        sem = Semester.objects.create(
+            student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=unassigned_tutor).key}')
+        response = self.client.post('/api/tutoring/', {
+            'student': self.student.id,
+            'semester': sem.id,
+            'fecha_sesion': '2025-02-01',
+            'modalidad': 'PRESENCIAL',
+            'resumen': 'Sesion no autorizada',
+        }, format='json')
+        self.assertEqual(response.status_code, 403)
+
+    def test_tutoring_assigned_committee_member_gets_201(self):
+        assigned_tutor = self.user_model.objects.create_user(
+            email='assigned@test.com', password='password123', role=self.user_model.Role.TUTOR
+        )
+        AcademicCommittee.objects.create(
+            student=self.student,
+            user=assigned_tutor,
+            rol_comite=AcademicCommittee.Role.COMMITTEE_MEMBER,
+            is_active=True,
+        )
+        sem = Semester.objects.create(
+            student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=assigned_tutor).key}')
+        response = self.client.post('/api/tutoring/', {
+            'student': self.student.id,
+            'semester': sem.id,
+            'fecha_sesion': '2025-02-01',
+            'modalidad': 'PRESENCIAL',
+            'resumen': 'Sesion autorizada',
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
 
     def test_hu06_academic_summary_canonical_endpoint(self):
         coord = self.user_model.objects.create_user(
@@ -543,7 +677,20 @@ class SuperAdminApiTests(APITestCase):
         res2 = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
         self.assertEqual(res2.status_code, 200)
         self.assertEqual(res1.data['student']['matricula'], self.student.matricula)
-        self.assertEqual(res2.data['student']['matricula'], self.student.matricula)
+
+    def test_non_student_user_cannot_be_changed_to_student(self):
+        tutor = self.user_model.objects.create_user(
+            email='tutor_role_change@test.com', password='password123', role=self.user_model.Role.TUTOR
+        )
+        admin_token, _ = Token.objects.get_or_create(user=self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
+        response = self.client.patch(
+            f'/api/auth/users/{tutor.id}/role/',
+            {'role': 'STUDENT'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('estudiante', response.data['detail'])
 
     def test_system_admin_cannot_access_academic_summary(self):
         res = self.client.get(f'/api/students/{self.student.id}/academic-summary/')

@@ -16,12 +16,12 @@ export class Register {
   private readonly router = inject(Router);
 
   protected readonly form = this.formBuilder.group({
-    first_name: ['', [Validators.required, Validators.maxLength(150)]],
-    last_name: ['', [Validators.required, Validators.maxLength(150)]],
+    first_name: ['', [Validators.required, Validators.maxLength(150), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
+    last_name: ['', [Validators.required, Validators.maxLength(150), Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     passwordConfirmation: ['', [Validators.required]],
-    matricula: ['', [Validators.required, Validators.maxLength(20)]],
+    matricula: ['', [Validators.required, Validators.maxLength(9), Validators.pattern(/^[a-zA-Z0-9-]{1,9}$/)]],
     programa_doctoral: ['Doctorado en Ciencias', [Validators.required]],
     cohorte: ['', [Validators.required, Validators.maxLength(20)]],
   });
@@ -29,6 +29,23 @@ export class Register {
   protected registerError = false;
   protected showPassword = false;
   protected showConfirmPassword = false;
+
+  bloquearNumeros(event: KeyboardEvent): void {
+    if (event.key >= '0' && event.key <= '9') {
+      event.preventDefault();
+    }
+  }
+
+  filtrarNumeros(event: Event, controlName: 'first_name' | 'last_name'): void {
+    const input = event.target as HTMLInputElement;
+    if (input) {
+      const sanitized = input.value.replace(/[0-9]/g, '');
+      if (input.value !== sanitized) {
+        input.value = sanitized;
+        this.form.get(controlName)?.setValue(sanitized);
+      }
+    }
+  }
 
   submit(): void {
     this.registerError = false;

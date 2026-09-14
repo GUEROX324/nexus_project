@@ -15,7 +15,8 @@ export type Permission =
   | 'tutoring.create'
   | 'users.role.assign'
   | 'students.create'
-  | 'semesters.manage';
+  | 'semesters.manage'
+  | 'committee.manage';
 
 export type UserRole =
   | 'STUDENT'
@@ -24,6 +25,15 @@ export type UserRole =
   | 'PROGRAM_COORDINATOR'
   | 'ACADEMIC_ADMIN'
   | 'SYSTEM_ADMIN';
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  STUDENT: 'Estudiante',
+  TUTOR: 'Asesor / Tutor',
+  COMMITTEE_MEMBER: 'Miembro del comité',
+  PROGRAM_COORDINATOR: 'Coordinador del programa',
+  ACADEMIC_ADMIN: 'Administrador académico',
+  SYSTEM_ADMIN: 'Administrador del sistema',
+};
 
 export interface LoginCredentials {
   email: string;

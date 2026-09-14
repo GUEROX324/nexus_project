@@ -22,17 +22,42 @@
 
       <label>
         Nombre
-        <input type="text" formControlName="first_name">
+        <input
+          type="text"
+          formControlName="first_name"
+          (keydown)="bloquearNumeros($event)"
+          (input)="filtrarNumeros($event, 'first_name')"
+        >
+        @if (formulario.get('first_name')?.touched && formulario.get('first_name')?.hasError('required')) {
+          <small class="mensaje error">El nombre es obligatorio.</small>
+        }
+        @if (formulario.get('first_name')?.touched && formulario.get('first_name')?.hasError('pattern')) {
+          <small class="mensaje error">Solo se permiten letras en el nombre.</small>
+        }
       </label>
 
       <label>
         Apellidos
-        <input type="text" formControlName="last_name">
+        <input
+          type="text"
+          formControlName="last_name"
+          (keydown)="bloquearNumeros($event)"
+          (input)="filtrarNumeros($event, 'last_name')"
+        >
+        @if (formulario.get('last_name')?.touched && formulario.get('last_name')?.hasError('required')) {
+          <small class="mensaje error">Los apellidos son obligatorios.</small>
+        }
+        @if (formulario.get('last_name')?.touched && formulario.get('last_name')?.hasError('pattern')) {
+          <small class="mensaje error">Solo se permiten letras en los apellidos.</small>
+        }
       </label>
 
       <label>
         Correo institucional
         <input type="email" formControlName="email">
+        @if (formulario.get('email')?.touched && formulario.get('email')?.hasError('email')) {
+          <small class="mensaje error">Ingresa un formato de correo válido.</small>
+        }
       </label>
 
       <label>
@@ -62,7 +87,10 @@
 
       <label>
         Matrícula
-        <input type="text" formControlName="matricula">
+        <input type="text" formControlName="matricula" maxlength="9">
+        @if (formulario.get('matricula')?.touched && (formulario.get('matricula')?.hasError('maxlength') || formulario.get('matricula')?.hasError('pattern'))) {
+          <small class="mensaje error">La matrícula debe tener como máximo 9 caracteres alfanuméricos.</small>
+        }
       </label>
 
       <label>

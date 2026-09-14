@@ -58,7 +58,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 class Student(models.Model):
 	user = models.OneToOneField(CustomUser, null=True, blank=True, on_delete=models.SET_NULL, related_name='student_profile')
-	matricula = models.CharField(max_length=20, unique=True, db_index=True)
+	matricula = models.CharField(max_length=9, unique=True, db_index=True)
 	nombre_completo = models.CharField(max_length=255)
 	programa_doctoral = models.CharField(max_length=255, default='Doctorado en Ciencias')
 	fecha_ingreso = models.DateField(null=True, blank=True, default=timezone.now)
@@ -95,8 +95,7 @@ class AcademicCommittee(models.Model):
 	class Role(models.TextChoices):
 		PRINCIPAL_ADVISOR = 'ASESOR_PRINCIPAL', 'Asesor principal'
 		CO_ADVISOR = 'COASESOR', 'Coasesor'
-		VOCAL = 'VOCAL', 'Vocal'
-		SECRETARY = 'SECRETARIO', 'Secretario'
+		COMMITTEE_MEMBER = 'MIEMBRO_COMITE', 'Miembro del comité'
 
 	student = models.ForeignKey(
 		Student,

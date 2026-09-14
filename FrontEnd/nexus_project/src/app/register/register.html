@@ -53,7 +53,12 @@
               formControlName="first_name"
               autocomplete="given-name"
               placeholder="Tu nombre"
+              (keydown)="bloquearNumeros($event)"
+              (input)="filtrarNumeros($event, 'first_name')"
             />
+            @if (form.controls.first_name.touched && form.controls.first_name.hasError('pattern')) {
+              <span class="validation">Solo se permiten letras en el nombre.</span>
+            }
           </div>
 
           <div class="field">
@@ -65,7 +70,12 @@
               formControlName="last_name"
               autocomplete="family-name"
               placeholder="Tus apellidos"
+              (keydown)="bloquearNumeros($event)"
+              (input)="filtrarNumeros($event, 'last_name')"
             />
+            @if (form.controls.last_name.touched && form.controls.last_name.hasError('pattern')) {
+              <span class="validation">Solo se permiten letras en los apellidos.</span>
+            }
           </div>
 
         </div>
@@ -99,11 +109,12 @@
               type="text"
               formControlName="matricula"
               placeholder="Tu matrícula"
+              maxlength="9"
             />
 
             @if (form.controls.matricula.touched && form.controls.matricula.invalid) {
               <span class="validation">
-                La matrícula es obligatoria.
+                La matrícula es obligatoria (máx. 9 caracteres).
               </span>
             }
           </div>

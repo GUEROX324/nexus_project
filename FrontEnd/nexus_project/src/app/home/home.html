@@ -17,11 +17,10 @@
   @if (auth.user(); as user) {
     <section aria-label="Informacion de sesion" class="user-card">
       <p>Bienvenido, {{ user.first_name || user.email }}.</p>
-      <p class="role">Rol: {{ user.role }}</p>
-      <p>Permisos efectivos: {{ user.permissions.join(', ') }}</p>
+      <p class="role">Rol: {{ getRoleLabel(user.role) }}</p>
 
       <div class="actions-row">
-        @if ((user.role === 'STUDENT' || user.role === 'SYSTEM_ADMIN') && auth.user()) {
+        @if (user.role === 'STUDENT' && auth.user()) {
           <a [routerLink]="['/expediente', auth.user()!.id]" class="btn-action">Mi expediente académico</a>
         }
 
@@ -29,10 +28,13 @@
           <a routerLink="/coordinator/students/new" class="btn-action">+ Registrar estudiante</a>
         }
 
+        @if (auth.hasPermission('committee.manage')) {
+          <a routerLink="/coordinator/committee" class="btn-action">Asociaciones académicas</a>
+        }
+
         @if (auth.hasPermission('users.role.assign')) {
           <a routerLink="/admin/roles" class="btn-action">Administrar roles</a>
           <a routerLink="/admin/users" class="btn-action">Cuentas institucionales</a>
-          <a routerLink="/admin/committee" class="btn-action">Asociaciones académicas</a>
           <a routerLink="/admin/audit" class="btn-action">Historial administrativo</a>
         }
       </div>

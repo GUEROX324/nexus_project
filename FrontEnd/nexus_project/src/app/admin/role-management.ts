@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { AuthenticatedUser, UserRole } from '../core/auth/auth.models';
+import { AuthenticatedUser, ROLE_LABELS, UserRole } from '../core/auth/auth.models';
 import { AuthService } from '../core/auth/auth.service';
 
 const AVAILABLE_ROLES: UserRole[] = [
@@ -10,7 +10,6 @@ const AVAILABLE_ROLES: UserRole[] = [
   'COMMITTEE_MEMBER',
   'PROGRAM_COORDINATOR',
   'ACADEMIC_ADMIN',
-  'SYSTEM_ADMIN',
 ];
 
 @Component({
@@ -31,8 +30,25 @@ export class RoleManagement {
     this.loadUsers();
   }
 
+  getRoleLabel(role: string): string {
+    return ROLE_LABELS[role as UserRole] || role;
+  }
+
+  getAvailableRolesForUser(user: AuthenticatedUser): UserRole[] {
+    if (user.role === 'STUDENT') {
+      return this.roles;
+    }
+    return this.roles.filter((r) => r !== 'STUDENT');
+  }
+
   assignRole(user: AuthenticatedUser, role: UserRole): void {
-    if (user.email === 'admin@nexus.com' || role === user.role || this.updatingUserIds.has(user.id)) {
+    if (
+      user.role === 'SYSTEM_ADMIN' ||
+      role === 'SYSTEM_ADMIN' ||
+      (role === 'STUDENT' && user.role !== 'STUDENT') ||
+      role === user.role ||
+      this.updatingUserIds.has(user.id)
+    ) {
       return;
     }
 

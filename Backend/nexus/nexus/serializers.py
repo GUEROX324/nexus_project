@@ -1,7 +1,11 @@
 from django.contrib.auth import authenticate, password_validation
+from django.core.validators import RegexValidator
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
+
+NAME_REGEX_VALIDATOR = RegexValidator(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', 'Solo se permiten letras y espacios.')
+MATRICULA_REGEX_VALIDATOR = RegexValidator(r'^[a-zA-Z0-9-]{1,9}$', 'La matrícula debe ser de hasta 9 caracteres.')
 
 from .models import (
     AcademicCommittee,
@@ -46,12 +50,19 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RoleAssignmentSerializer(serializers.Serializer):
-    role = serializers.ChoiceField(choices=CustomUser.Role.choices)
+    role = serializers.ChoiceField(
+        choices=[c for c in CustomUser.Role.choices if c[0] != CustomUser.Role.SYSTEM_ADMIN]
+    )
+
+    def validate_role(self, value):
+        if value == CustomUser.Role.SYSTEM_ADMIN:
+            raise serializers.ValidationError('No está permitido promover usuarios al rol de administrador del sistema.')
+        return value
 
 
 class InstitutionalUserCreateSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
+    last_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False)
     role = serializers.ChoiceField(choices=[
@@ -83,11 +94,16 @@ class CommitteeAssignmentSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         user = attrs.get('user', self.instance.user if self.instance else None)
-        if user.role not in (
+        student = attrs.get('student', self.instance.student if self.instance else None)
+        if user and user.role not in (
             CustomUser.Role.TUTOR,
             CustomUser.Role.COMMITTEE_MEMBER,
         ):
-            raise serializers.ValidationError('La cuenta debe tener rol de tutor o miembro del comité.')
+            raise serializers.ValidationError({'user': 'La cuenta asignada debe tener rol de tutor o miembro del comité.'})
+        if student and student.user and student.user.role != CustomUser.Role.STUDENT:
+            raise serializers.ValidationError({'student': 'El estudiante seleccionado debe tener exclusivamente rol de estudiante.'})
+        if student and student.user_id and user and student.user_id == user.id:
+            raise serializers.ValidationError({'user': 'Un estudiante no puede pertenecer a su propio comité.'})
         return attrs
 
 
@@ -280,11 +296,11 @@ StudentRecordSerializer = StudentOverviewSerializer
 
 
 class StudentCreateSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
+    last_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False)
-    matricula = serializers.CharField(max_length=20)
+    matricula = serializers.CharField(max_length=9, validators=[MATRICULA_REGEX_VALIDATOR])
     programa_doctoral = serializers.CharField(max_length=255)
     fecha_ingreso = serializers.DateField()
     cohorte = serializers.CharField(max_length=20)
@@ -405,11 +421,11 @@ class LoginSerializer(serializers.Serializer):
 
 
 class RegistrationSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
+    first_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
+    last_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False)
-    matricula = serializers.CharField(max_length=20)
+    matricula = serializers.CharField(max_length=9, validators=[MATRICULA_REGEX_VALIDATOR])
     programa_doctoral = serializers.CharField(max_length=255)
     cohorte = serializers.CharField(max_length=20)
 

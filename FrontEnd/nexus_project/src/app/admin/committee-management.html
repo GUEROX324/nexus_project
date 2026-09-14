@@ -1,11 +1,14 @@
 <main>
+  <div style="margin-bottom: 1rem;">
+    <a href="/home" style="color: #4338ca; text-decoration: none; font-weight: 500;">← Volver al inicio</a>
+  </div>
   <h1>Asociaciones académicas</h1>
   <p>Vincula cuentas de asesoría o comité con estudiantes y controla su vigencia.</p>
   <form (ngSubmit)="createAssignment()">
     <label>Cuenta institucional
       <select name="user" [(ngModel)]="form.user" required [disabled]="loading">
         <option [ngValue]="null">Selecciona una cuenta</option>
-        @for (user of users; track user.id) { <option [ngValue]="user.id">{{ user.email }} ({{ user.role }})</option> }
+        @for (user of users; track user.id) { <option [ngValue]="user.id">{{ user.email }} ({{ getRoleLabel(user.role) }})</option> }
       </select>
     </label>
     <label>Estudiante
@@ -18,8 +21,7 @@
       <select name="rol_comite" [(ngModel)]="form.rol_comite">
         <option value="ASESOR_PRINCIPAL">Asesor principal</option>
         <option value="COASESOR">Coasesor</option>
-        <option value="VOCAL">Vocal</option>
-        <option value="SECRETARIO">Secretario</option>
+        <option value="MIEMBRO_COMITE">Miembro del comité</option>
       </select>
     </label>
     <button type="submit" [disabled]="loading">Crear asociación</button>
@@ -32,7 +34,7 @@
           <tr>
             <td>{{ assignment.user_email }}</td>
             <td>{{ assignment.student_name }}</td>
-            <td>{{ assignment.rol_comite }}</td>
+            <td>{{ getCommitteeRoleLabel(assignment.rol_comite) }}</td>
             <td>{{ assignment.is_active ? 'Activa' : 'Inactiva' }}</td>
             <td><button type="button" (click)="toggle(assignment)">{{ assignment.is_active ? 'Desactivar' : 'Activar' }}</button></td>
           </tr>

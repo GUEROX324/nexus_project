@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
+import { ROLE_LABELS, UserRole } from '../core/auth/auth.models';
 import { AcademicService } from '../core/academic/academic.service';
 import { StudentService } from '../core/students/student.service';
 import { StudentRecord } from '../core/academic/academic.models';
@@ -23,6 +24,11 @@ export class Home implements OnInit {
   protected isLeaving = false;
   protected estudiantes: StudentRecord[] = [];
   protected cargandoEstudiantes = false;
+
+  getRoleLabel(role?: string): string {
+    if (!role) return '';
+    return ROLE_LABELS[role as UserRole] || role;
+  }
 
   ngOnInit(): void {
     if (this.auth.hasPermission('academic.read.global')) {

@@ -3,6 +3,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from './admin.service';
 import { InstitutionalRole } from './admin.models';
+import { ROLE_LABELS, UserRole } from '../core/auth/auth.models';
 
 const FALLBACK_CREATE_ERROR = 'No fue posible crear la cuenta. Verifica los datos e inténtalo nuevamente.';
 
@@ -20,6 +21,27 @@ export class InstitutionalUsers {
   protected error = '';
   protected saving = false;
   protected showPassword = false;
+
+  getRoleLabel(role: string): string {
+    return ROLE_LABELS[role as UserRole] || role;
+  }
+
+  bloquearNumeros(event: KeyboardEvent): void {
+    if (event.key >= '0' && event.key <= '9') {
+      event.preventDefault();
+    }
+  }
+
+  filtrarNumeros(event: Event, field: 'first_name' | 'last_name'): void {
+    const input = event.target as HTMLInputElement;
+    if (input) {
+      const sanitized = input.value.replace(/[0-9]/g, '');
+      if (input.value !== sanitized) {
+        input.value = sanitized;
+        this.form[field] = sanitized;
+      }
+    }
+  }
 
   createUser(): void {
     this.message = '';

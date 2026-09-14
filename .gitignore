@@ -2,6 +2,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 Backend/venv/
+Backend/.venv/
+*.sqlite3
+*.db
+db.sqlite3
+.zcode/
 FrontEnd/nexus_project/node_modules/
 FrontEnd/nexus_project/.angular/
 FrontEnd/nexus_project/dist/

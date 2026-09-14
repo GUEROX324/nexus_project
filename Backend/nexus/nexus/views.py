@@ -7,12 +7,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from django.db import transaction
+from django.db.models import Q
 
 from .models import AcademicCommittee, AdminAuditLog, CustomUser, Semester, Student
 from .permissions import (
     CanAssignRoles,
     CanCreateStudent,
     CanCreateTutoring,
+    CanManageCommittee,
     CanManageSemesters,
     CanReadGlobalAcademics,
     permissions_for_user,
@@ -83,7 +85,7 @@ class MeView(APIView):
 
 class UserRoleListView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [CanAssignRoles]
+    permission_classes = [CanAssignRoles | CanManageCommittee]
 
     def get(self, request):
         users = CustomUser.objects.order_by('email')
@@ -100,11 +102,30 @@ class UserRoleUpdateView(APIView):
         if user is None:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if user.role == CustomUser.Role.SYSTEM_ADMIN:
+            return Response(
+                {'detail': 'No se puede modificar el rol del administrador del sistema principal.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         serializer = RoleAssignmentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        new_role = serializer.validated_data['role']
+        if new_role == CustomUser.Role.SYSTEM_ADMIN:
+            return Response(
+                {'detail': 'No está permitido promover usuarios al rol de administrador del sistema.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_role == CustomUser.Role.STUDENT and user.role != CustomUser.Role.STUDENT:
+            return Response(
+                {'detail': 'Un usuario que no sea estudiante no puede ser asignado como estudiante.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         previous_role = user.role
         with transaction.atomic():
-            user.role = serializer.validated_data['role']
+            user.role = new_role
             user.save(update_fields=['role', 'updated_at'])
             AdminAuditLog.objects.create(
                 action=AdminAuditLog.Action.ROLE_ASSIGNED,
@@ -135,7 +156,7 @@ class InstitutionalUserCreateView(APIView):
 
 class CommitteeAssignmentListCreateView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [CanAssignRoles]
+    permission_classes = [CanManageCommittee]
 
     def get(self, request):
         assignments = AcademicCommittee.objects.select_related('user', 'student').order_by('student__matricula')
@@ -158,10 +179,12 @@ class CommitteeAssignmentListCreateView(APIView):
 
 class AdminStudentListView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [CanAssignRoles]
+    permission_classes = [CanManageCommittee | CanAssignRoles]
 
     def get(self, request):
-        students = Student.objects.filter(estatus_activo=True).order_by('matricula')
+        students = Student.objects.filter(estatus_activo=True).filter(
+            Q(user__isnull=True) | Q(user__role=CustomUser.Role.STUDENT)
+        ).order_by('matricula')
         return Response(StudentRecordSerializer(students, many=True).data)
 
 class StudentCreateView(APIView):
@@ -181,7 +204,7 @@ class StudentCreateView(APIView):
 
 class CommitteeAssignmentUpdateView(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [CanAssignRoles]
+    permission_classes = [CanManageCommittee]
 
     @transaction.atomic
     def patch(self, request, assignment_id):
@@ -289,13 +312,12 @@ class TutoringSessionCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         student = serializer.validated_data['student']
         user = request.user
-        is_system_admin = user.role == CustomUser.Role.SYSTEM_ADMIN or user.is_superuser
         is_assigned = AcademicCommittee.objects.filter(
             student=student,
             user=user,
             is_active=True,
         ).exists()
-        if not is_assigned and not is_system_admin:
+        if not is_assigned:
             return Response(
                 {'detail': 'No puede registrar tutorias para este estudiante.'},
                 status=status.HTTP_403_FORBIDDEN,
