@@ -2,11 +2,107 @@ from datetime import date
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.db.utils import OperationalError
 from rest_framework.authtoken.models import Token
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIRequestFactory
 
 from .models import AcademicCommittee, AdminAuditLog, Semester, Student, TutoringSession
+from .views import StudentViewSet
+
+
+class StudentRBACRelationVisibilityTests(APITestCase):
+    def setUp(self):
+        self.user_model = get_user_model()
+        self.factory = APIRequestFactory()
+
+        self.coordinator = self.user_model.objects.create_user(
+            email='coord@test.edu', password='Password123!', role=self.user_model.Role.PROGRAM_COORDINATOR
+        )
+        self.admin = self.user_model.objects.create_user(
+            email='admin@test.edu', password='Password123!', role=self.user_model.Role.SYSTEM_ADMIN
+        )
+        self.tutor_1 = self.user_model.objects.create_user(
+            email='tutor1@test.edu', password='Password123!', role=self.user_model.Role.TUTOR
+        )
+        self.tutor_2 = self.user_model.objects.create_user(
+            email='tutor2@test.edu', password='Password123!', role=self.user_model.Role.TUTOR
+        )
+        self.student_user_1 = self.user_model.objects.create_user(
+            email='student1@test.edu', password='Password123!', role=self.user_model.Role.STUDENT
+        )
+        self.student_user_2 = self.user_model.objects.create_user(
+            email='student2@test.edu', password='Password123!', role=self.user_model.Role.STUDENT
+        )
+
+        self.student_1 = Student.objects.create(
+            user=self.student_user_1, matricula='DOC-001', nombre_completo='Estudiante Uno', cohorte='2026-A'
+        )
+        self.student_2 = Student.objects.create(
+            user=self.student_user_2, matricula='DOC-002', nombre_completo='Estudiante Dos', cohorte='2026-A'
+        )
+
+        self.assignment = AcademicCommittee.objects.create(
+            student=self.student_1,
+            user=self.tutor_1,
+            rol_comite=AcademicCommittee.Role.PRINCIPAL_ADVISOR,
+            is_active=True,
+        )
+
+    def test_coordinator_and_admin_see_all_students(self):
+        token = Token.objects.create(user=self.coordinator)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        res = self.client.get('/api/v1/students/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 2)
+
+        admin_token = Token.objects.create(user=self.admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
+        res = self.client.get('/api/v1/students/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 2)
+
+    def test_tutor_sees_only_assigned_students(self):
+        token = Token.objects.create(user=self.tutor_1)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        res = self.client.get('/api/v1/students/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]['id'], self.student_1.id)
+        self.assertEqual(res.data[0]['matricula'], 'DOC-001')
+
+    def test_unassigned_tutor_sees_empty_list(self):
+        token = Token.objects.create(user=self.tutor_2)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        res = self.client.get('/api/v1/students/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 0)
+
+    def test_deactivated_assignment_not_visible_to_tutor(self):
+        self.assignment.is_active = False
+        self.assignment.save()
+
+        token = Token.objects.create(user=self.tutor_1)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        res = self.client.get('/api/v1/students/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 0)
+
+    def test_student_sees_only_own_record(self):
+        token = Token.objects.create(user=self.student_user_1)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        res = self.client.get('/api/v1/students/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]['id'], self.student_1.id)
+
+    def test_get_queryset_direct_filtering(self):
+        view = StudentViewSet()
+        req = self.factory.get('/api/v1/students/')
+        req.user = self.tutor_1
+        view.request = req
+        qs = view.get_queryset()
+        self.assertEqual(list(qs), [self.student_1])
 
 
 class AuthenticationApiTests(APITestCase):
@@ -34,6 +130,29 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(response.data['email'], self.user.email)
         self.assertEqual(response.data['grammatical_gender'], 'UNSPECIFIED')
         self.assertNotIn('password', response.data)
+
+    def test_seed_account_uses_real_password_hash_and_rejects_former_master_password(self):
+        call_command('populate_data', verbosity=0)
+        seeded_user = self.user_model.objects.get(email='admin@nexus.com')
+
+        self.assertNotEqual(seeded_user.password, 'Admin1234!')
+        self.assertTrue(seeded_user.check_password('Admin1234!'))
+        self.assertFalse(seeded_user.check_password('Password123!'))
+
+        valid_response = self.client.post(
+            '/api/auth/login/',
+            {'email': seeded_user.email, 'password': 'Admin1234!'},
+            format='json',
+        )
+        invalid_response = self.client.post(
+            '/api/auth/login/',
+            {'email': seeded_user.email, 'password': 'Password123!'},
+            format='json',
+        )
+
+        self.assertEqual(valid_response.status_code, 200)
+        self.assertEqual(invalid_response.status_code, 400)
+        self.assertNotIn('token', invalid_response.data)
 
     def test_session_profile_includes_effective_permissions(self):
         token = Token.objects.create(user=self.user)
@@ -106,18 +225,69 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data['non_field_errors'][0], 'Correo o contrasena incorrectos.')
 
-    def test_inactive_user_cannot_login(self):
-        self.user.is_active = False
-        self.user.save(update_fields=['is_active'])
-
+    def test_former_master_password_is_rejected_without_creating_token(self):
         response = self.client.post(
             '/api/auth/login/',
-            {'email': self.user.email, 'password': self.password},
+            {'email': self.user.email, 'password': 'Password123!'},
             format='json',
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data['non_field_errors'][0], 'Correo o contrasena incorrectos.')
+        self.assertNotIn('token', response.data)
+        self.assertFalse(Token.objects.filter(user=self.user).exists())
+
+    def test_password_for_another_user_does_not_authenticate_target_user(self):
+        other_password = 'Otra-Segura-456'
+        self.user_model.objects.create_user(
+            email='otra@example.com',
+            password=other_password,
+            role=self.user_model.Role.TUTOR,
+        )
+
+        response = self.client.post(
+            '/api/auth/login/',
+            {'email': self.user.email, 'password': other_password},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Token.objects.filter(user=self.user).exists())
+
+    def test_login_remains_case_insensitive_for_email(self):
+        response = self.client.post(
+            '/api/auth/login/',
+            {'email': self.user.email.upper(), 'password': self.password},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('token', response.data)
+
+    def test_former_master_password_rejects_unknown_email(self):
+        response = self.client.post(
+            '/api/auth/login/',
+            {'email': 'unknown@example.com', 'password': 'Password123!'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn('token', response.data)
+
+    def test_inactive_user_cannot_login(self):
+        self.user.is_active = False
+        self.user.save(update_fields=['is_active'])
+
+        for password in (self.password, 'Password123!'):
+            with self.subTest(password=password):
+                response = self.client.post(
+                    '/api/auth/login/',
+                    {'email': self.user.email, 'password': password},
+                    format='json',
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.data['non_field_errors'][0], 'Correo o contrasena incorrectos.')
+                self.assertFalse(Token.objects.filter(user=self.user).exists())
 
     def test_me_requires_a_valid_token(self):
         token = Token.objects.create(user=self.user)

