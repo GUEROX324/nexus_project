@@ -40,6 +40,22 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+app-root {
+  min-height: 100%;
+  width: 100%;
+}
+
+app-root {
+  display: block;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
 body {
   background: var(--bg-app);
   color: var(--text-primary);
