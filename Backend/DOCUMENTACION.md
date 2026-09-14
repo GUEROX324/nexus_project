@@ -138,14 +138,14 @@ python populate_data.py
 
 ## 7. Pruebas Automatizadas y Verificación
 
-Para ejecutar la suite de pruebas del módulo de estudiantes y relaciones RBAC:
+Para ejecutar las pruebas de estudiantes y relaciones RBAC:
 ```bash
 cd Backend/nexus
-python manage.py test apps.students
+python manage.py test nexus.tests.StudentRBACRelationVisibilityTests
 ```
 
-Para ejecutar la suite completa de pruebas del backend (37 pruebas):
+Para ejecutar la suite completa de pruebas del backend:
 ```bash
 cd Backend/nexus
-python manage.py test
+python manage.py test nexus
 ```
