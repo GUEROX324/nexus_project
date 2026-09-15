@@ -21,6 +21,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     GlobalAcademicOverviewView,
+    AgreementViewSet,
     CommitteeAssignmentListCreateView,
     CommitteeAssignmentUpdateView,
     AdminStudentListView,
@@ -41,6 +42,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'students', StudentViewSet, basename='students')
 router.register(r'tutoring-sessions', TutoringSessionViewSet, basename='tutoring-sessions')
+router.register(r'agreements', AgreementViewSet, basename='agreements')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
