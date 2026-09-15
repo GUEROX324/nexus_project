@@ -238,10 +238,16 @@ class Evidence(models.Model):
 		LOCAL_FILE = 'ARCHIVO_LOCAL', 'Archivo local'
 		DOI_LINK = 'ENLACE_DOI', 'Enlace DOI'
 
+	class ActivityType(models.TextChoices):
+		TUTORING = 'TUTORIA', 'Tutoría'
+		AGREEMENT = 'ACUERDO', 'Acuerdo'
+		THESIS = 'TESIS', 'Tesis'
+		OTHER = 'OTRO', 'Otro'
+
 	student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='evidences', db_index=True)
 	semester = models.ForeignKey(Semester, null=True, blank=True, on_delete=models.SET_NULL, related_name='evidences')
 	tipo = models.CharField(max_length=20, choices=EvidenceType.choices, default=EvidenceType.LOCAL_FILE, db_index=True)
-	actividad_tipo = models.CharField(max_length=20, default='OTRO', db_index=True)
+	actividad_tipo = models.CharField(max_length=20, choices=ActivityType.choices, default=ActivityType.OTHER, db_index=True)
 	actividad_id = models.PositiveIntegerField(null=True, blank=True, db_index=True)
 	titulo = models.CharField(max_length=255)
 	descripcion = models.TextField(blank=True, default='')
@@ -249,9 +255,17 @@ class Evidence(models.Model):
 	enlace_url = models.CharField(max_length=500, blank=True, default='')
 	mime_type = models.CharField(max_length=100, blank=True, default='')
 	file_size_bytes = models.BigIntegerField(default=0)
-	fecha_carga = models.DateField(default=timezone.now, db_index=True)
+	fecha_carga = models.DateField(default=timezone.localdate, db_index=True)
 	created_by = models.ForeignKey(CustomUser, null=True, blank=True, on_delete=models.SET_NULL, related_name='uploaded_evidences')
 	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		constraints = [
+			models.CheckConstraint(
+				condition=Q(actividad_tipo__in=['TUTORIA', 'ACUERDO', 'TESIS', 'OTRO']),
+				name='evidence_valid_activity_type',
+			),
+		]
 
 
 class AcademicOutputBase(models.Model):

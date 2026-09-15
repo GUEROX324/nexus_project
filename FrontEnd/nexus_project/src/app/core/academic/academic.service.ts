@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PaginatedResponse } from '../../shared/pagination';
-import { StudentRecord, TutoringSession, TutoringSessionData, Semester, CreateSemesterData, StudentOverview, Agreement } from './academic.models';
+import { StudentRecord, TutoringSession, TutoringSessionData, Semester, CreateSemesterData, StudentOverview, Agreement, Evidence, EvidenceUploadData } from './academic.models';
 
 const API = environment.apiUrl;
 
@@ -38,5 +38,15 @@ export class AcademicService {
 
   createSemester(studentId: number, data: CreateSemesterData): Observable<Semester> {
     return this.http.post<Semester>(`${API}/students/${studentId}/semesters/`, data);
+  }
+
+  uploadEvidence(data: EvidenceUploadData): Observable<Evidence> {
+    const form = new FormData();
+    form.append('student', String(data.student));
+    if (data.semester !== null) form.append('semester', String(data.semester));
+    form.append('actividad_tipo', data.actividad_tipo);
+    form.append('titulo', data.titulo);
+    form.append('archivo_adjunto', data.archivo_adjunto);
+    return this.http.post<Evidence>(`${API}/evidence/`, form);
   }
 }

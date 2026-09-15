@@ -113,4 +113,22 @@ export interface Agreement {
   is_vencido: boolean;
 }
 
+export interface EvidenceUploadData {
+  student: number;
+  semester: number | null;
+  actividad_tipo: string;
+  titulo: string;
+  archivo_adjunto: File;
+}
+
+export interface Evidence {
+  id: number;
+  student: number;
+  semester: number | null;
+  actividad_tipo: string;
+  titulo: string;
+  mime_type: string;
+  file_size_bytes: number;
+}
+
 export type AcademicRole = UserRole;
