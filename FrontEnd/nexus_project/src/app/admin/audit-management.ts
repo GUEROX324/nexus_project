@@ -15,10 +15,16 @@ export class AuditManagement {
   protected logs: AdminAuditLog[] = [];
   protected loading = true;
   protected error = '';
+  protected page = 1;
+  protected total = 0;
+  protected hasNext = false;
 
-  constructor() {
-    this.admin.getAuditLogs().pipe(finalize(() => this.loading = false)).subscribe({
-      next: (logs) => this.logs = logs,
+  constructor() { this.load(); }
+
+  protected load(page = 1): void {
+    this.loading = true;
+    this.admin.getAuditLogs(page).pipe(finalize(() => this.loading = false)).subscribe({
+      next: (response) => { this.logs = response.results; this.total = response.count; this.page = page; this.hasNext = !!response.next; },
       error: () => this.error = 'No fue posible cargar el historial administrativo.',
     });
   }

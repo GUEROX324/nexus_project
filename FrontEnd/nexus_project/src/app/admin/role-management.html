@@ -1,6 +1,6 @@
 <main>
-  <div style="margin-bottom: 1rem;">
-    <a href="/home" style="color: #4338ca; text-decoration: none; font-weight: 500;">← Volver al inicio</a>
+  <div class="back-nav">
+    <a routerLink="/home" class="back-link">← Volver al inicio</a>
   </div>
   <h1>Administración de roles</h1>
   <p>Asigna el rol institucional del usuario.</p>
@@ -8,9 +8,9 @@
   @if (loading) {
     <p>Cargando usuarios...</p>
   } @else {
-    <table>
+    <table><caption>Roles institucionales</caption>
       <thead>
-        <tr><th>Usuario</th><th>Rol institucional</th></tr>
+        <tr><th scope="col">Usuario</th><th scope="col">Rol institucional</th></tr>
       </thead>
       <tbody>
         @for (user of users; track user.id) {

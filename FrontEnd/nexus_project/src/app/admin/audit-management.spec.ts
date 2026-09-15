@@ -15,7 +15,7 @@ describe('AuditManagement', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(AuditManagement);
     fixture.detectChanges();
-    http.expectOne('http://localhost:8000/api/v1/admin/audit/').flush([{
+    http.expectOne('http://localhost:8000/api/v1/admin/audit/?page=1').flush({ count: [{
       id: 1,
       action: 'ROLE_ASSIGNED',
       actor: 1,
@@ -25,7 +25,17 @@ describe('AuditManagement', () => {
       committee_assignment: null,
       details: { previous_role: 'STUDENT', new_role: 'TUTOR' },
       created_at: '2026-09-09T12:00:00Z',
-    }]);
+    }].length, next: null, previous: null, results: [{
+      id: 1,
+      action: 'ROLE_ASSIGNED',
+      actor: 1,
+      actor_email: 'admin@example.com',
+      target_user: 2,
+      target_user_email: 'tutor@example.com',
+      committee_assignment: null,
+      details: { previous_role: 'STUDENT', new_role: 'TUTOR' },
+      created_at: '2026-09-09T12:00:00Z',
+    }] });
     fixture.detectChanges();
   });
 

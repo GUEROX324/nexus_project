@@ -1,5 +1,5 @@
 <main>
-  <div style="margin-bottom: 1rem;"><a href="/home" style="color: #4338ca; text-decoration: none; font-weight: 500;">← Volver al inicio</a></div>
+  <div class="back-nav"><a routerLink="/home" class="back-link">← Volver al inicio</a></div>
   <h1>Comités académicos</h1>
   <p>Asigna integrantes al comité agrupado de cada estudiante.</p>
   <form (ngSubmit)="createAssignment()">
@@ -23,8 +23,8 @@
     <button type="submit" [disabled]="loading">Asignar membresía</button>
   </form>
   @if (loading) { <p>Cargando comités...</p> } @else {
-    <table>
-      <thead><tr><th>Estudiante</th><th>Cuenta</th><th>Participación</th><th>Acción</th></tr></thead>
+    <table><caption>Comités académicos</caption>
+      <thead><tr><th scope="col">Estudiante</th><th scope="col">Cuenta</th><th scope="col">Participación</th><th scope="col">Acción</th></tr></thead>
       <tbody>
         @for (committee of committees; track committee.id) {
           @for (membership of committee.memberships; track membership.id) {

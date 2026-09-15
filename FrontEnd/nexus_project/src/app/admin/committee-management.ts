@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, finalize } from 'rxjs';
 import { AdminService } from './admin.service';
@@ -7,7 +8,7 @@ import { AuthenticatedUser, ROLE_LABELS, UserRole } from '../core/auth/auth.mode
 
 @Component({
   selector: 'app-committee-management',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './committee-management.html',
   styleUrls: ['./committee-management.scss'],
 })
@@ -53,7 +54,7 @@ export class CommitteeManagement {
   private loadData(): void {
     forkJoin({ committees: this.admin.getCommittees(), users: this.admin.getUsers(), students: this.admin.getStudents() })
       .pipe(finalize(() => this.loading = false)).subscribe({
-        next: ({ committees, users, students }) => { this.committees = committees; this.users = users; this.students = students; },
+        next: ({ committees, users, students }) => { this.committees = committees.results; this.users = users.results; this.students = students.results; },
         error: () => this.error = 'No fue posible cargar cuentas, estudiantes y comités.',
       });
   }

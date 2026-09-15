@@ -3,7 +3,7 @@
     <div class="topbar-brand">
       <div class="brand-badge">
         <svg class="nexus-brand-icon" viewBox="0 0 12 10" width="14" height="12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3.98125 3.0625l1.54583-3.0625 0.175 0 1.54584 3.0625-3.26667 0 0 0m1.19583 6.9125l-5.03125-6.0375 5.03125 0 0 6.0375 0 0m0.875 0l0-6.0375 5.03125 0-5.03125 6.0375 0 0m2.15834-6.9125l-1.51667-3.0625 3.00417 0 1.53125 3.0625-3.01875 0 0 0m-8.21042 0l1.53125-3.0625 3.00417 0-1.51667 3.0625-3.01875 0 0 0" fill="#494AD5"/>
+          <path d="M3.98125 3.0625l1.54583-3.0625 0.175 0 1.54584 3.0625-3.26667 0 0 0m1.19583 6.9125l-5.03125-6.0375 5.03125 0 0 6.0375 0 0m0.875 0l0-6.0375 5.03125 0-5.03125 6.0375 0 0m2.15834-6.9125l-1.51667-3.0625 3.00417 0 1.53125 3.0625-3.01875 0 0 0m-8.21042 0l1.53125-3.0625 3.00417 0-1.51667 3.0625-3.01875 0 0 0" fill="currentColor"/>
         </svg>
         <span>N.E.X.U.S.</span>
       </div>
@@ -111,13 +111,13 @@
             <p class="empty-state">Sin acuerdos pendientes</p>
           } @else {
             <div class="table-responsive">
-              <table class="data-table">
+              <table class="data-table"><caption>Acuerdos abiertos del estudiante</caption>
                 <thead>
                   <tr>
-                    <th>Descripción</th>
-                    <th>Responsable</th>
-                    <th>Fecha límite</th>
-                    <th>Estado</th>
+                    <th scope="col">Descripción</th>
+                    <th scope="col">Responsable</th>
+                    <th scope="col">Fecha límite</th>
+                    <th scope="col">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -211,7 +211,7 @@
                 type="button"
                 class="btn-toggle-sem"
                 (click)="mostrarFormTutoria = !mostrarFormTutoria"
-                aria-expanded="false"
+                [attr.aria-expanded]="mostrarFormTutoria" aria-controls="tutoring-form"
               >
                 {{ mostrarFormTutoria ? 'Cancelar' : '+ Registrar tutoría' }}
               </button>
@@ -219,7 +219,7 @@
           </div>
 
           @if (mostrarFormTutoria) {
-            <form [formGroup]="tutoriaForm" (ngSubmit)="registrarTutoria()" class="semester-form">
+            <form id="tutoring-form" [formGroup]="tutoriaForm" (ngSubmit)="registrarTutoria()" class="semester-form">
               <div class="form-row">
                 <div class="field">
                   <label for="tut-semestre">Semestre</label>
@@ -243,7 +243,7 @@
                 </div>
               </div>
               <div class="form-row">
-                <div class="field" style="width: 100%;">
+                <div class="field field-full">
                   <label for="tut-resumen">Resumen de la sesión</label>
                   <input id="tut-resumen" type="text" formControlName="resumen" placeholder="Resumen de acuerdos y avances..." />
                 </div>
@@ -268,10 +268,10 @@
           }
 
           @if (errorTutoria) {
-            <p class="error-msg" role="alert" style="color: #dc2626; margin-top: 0.5rem;">{{ errorTutoria }}</p>
+            <p class="error-msg" role="alert">{{ errorTutoria }}</p>
           }
           @if (exitoTutoria) {
-            <p class="success-msg" role="status" style="color: #16a34a; margin-top: 0.5rem;">{{ exitoTutoria }}</p>
+            <p class="success-msg" role="status">{{ exitoTutoria }}</p>
           }
 
           @if (overview.last_tutoring) {
@@ -311,6 +311,7 @@
                 type="button"
                 class="btn-toggle-sem"
                 (click)="mostrarFormSemestre = !mostrarFormSemestre"
+                [attr.aria-expanded]="mostrarFormSemestre" aria-controls="semester-form"
               >
                 {{ mostrarFormSemestre ? 'Cancelar' : '+ Agregar' }}
               </button>
@@ -318,7 +319,7 @@
           </div>
 
           @if (mostrarFormSemestre && auth.hasPermission('semesters.manage')) {
-            <form [formGroup]="semForm" (ngSubmit)="registrarSemestre()" class="sem-form">
+            <form id="semester-form" [formGroup]="semForm" (ngSubmit)="registrarSemestre()" class="sem-form">
               <label>
                 Número de semestre (1 al 6)
                 <select formControlName="numero">

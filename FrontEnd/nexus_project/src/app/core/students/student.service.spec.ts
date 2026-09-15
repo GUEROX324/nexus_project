@@ -45,9 +45,9 @@ describe('StudentService (Angular Signals)', () => {
     service.loadStudents();
     expect(service.loading()).toBeTrue();
 
-    const req = httpMock.expectOne((r) => r.url.endsWith('/v1/students/'));
+    const req = httpMock.expectOne((r) => r.url.endsWith('/v1/students/?page=1'));
     expect(req.request.method).toBe('GET');
-    req.flush(mockStudents);
+    req.flush({ count: mockStudents.length, next: null, previous: null, results: mockStudents });
 
     expect(service.loading()).toBeFalse();
     expect(service.students()).toEqual(mockStudents);

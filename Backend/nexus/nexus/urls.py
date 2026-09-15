@@ -44,7 +44,6 @@ router.register(r'students', StudentViewSet, basename='students')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include(router.urls)),
-    path('api/', include(router.urls)),
     path('api/v1/auth/login/', LoginView.as_view(), name='auth-login'),
     path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='auth-token-refresh'),
     path('api/v1/auth/logout/', LogoutView.as_view(), name='auth-logout'),
@@ -56,11 +55,9 @@ urlpatterns = [
     path('api/v1/committee-memberships/<int:assignment_id>/', CommitteeAssignmentUpdateView.as_view(), name='committee-membership-delete'),
     path('api/v1/admin/students/', AdminStudentListView.as_view(), name='admin-students'),
     path('api/v1/admin/audit/', AdminAuditLogListView.as_view(), name='admin-audit'),
-    path('api/records/<int:student_id>/', StudentRecordView.as_view(), name='student-record'),
-    path('api/students/<int:student_id>/academic-summary/', StudentRecordView.as_view(), name='student-academic-summary'),
     path('api/v1/students/<int:student_id>/overview/', StudentRecordView.as_view(), name='v1-student-overview'),
     path('api/v1/students/<int:student_id>/semesters/', StudentSemesterListCreateView.as_view(), name='v1-student-semesters'),
     path('api/v1/students/<int:student_id>/semesters/<int:semester_id>/', StudentSemesterDetailView.as_view(), name='v1-student-semester-detail'),
-    path('api/tutoring/', TutoringSessionCreateView.as_view(), name='tutoring-create'),
-    path('api/academic/overview/', GlobalAcademicOverviewView.as_view(), name='academic-overview'),
+    path('api/v1/tutoring/', TutoringSessionCreateView.as_view(), name='tutoring-create'),
+    path('api/v1/academic/overview/', GlobalAcademicOverviewView.as_view(), name='academic-overview'),
 ]

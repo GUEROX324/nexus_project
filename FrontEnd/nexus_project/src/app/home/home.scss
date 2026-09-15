@@ -331,3 +331,7 @@ section a:hover {
     width: 100%;
   }
 }
+
+caption { text-align: left; padding: .5rem; font-weight: 600; }
+.error-card { color: var(--danger-text); }
+.paginator { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1rem; }

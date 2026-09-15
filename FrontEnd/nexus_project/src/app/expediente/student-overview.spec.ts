@@ -174,13 +174,13 @@ describe('StudentOverviewComponent', () => {
   it('se crea correctamente', () => {
     expect(component).toBeTruthy();
     fixture.detectChanges();
-    const req = http.expectOne('http://localhost:8000/api/records/10/');
+    const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockOverview);
   });
 
   it('carga y muestra los datos del estudiante (nombre, matrícula) y las 6 categorías', () => {
     fixture.detectChanges();
-    const req = http.expectOne('http://localhost:8000/api/records/10/');
+    const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     expect(req.request.method).toBe('GET');
     req.flush(mockOverview);
     fixture.detectChanges();
@@ -226,7 +226,7 @@ describe('StudentOverviewComponent', () => {
 
   it('muestra mensaje de error cuando la llamada HTTP retorna 404', () => {
     fixture.detectChanges();
-    const req = http.expectOne('http://localhost:8000/api/records/10/');
+    const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush({ detail: 'Not found.' }, { status: 404, statusText: 'Not Found' });
     fixture.detectChanges();
 
@@ -237,7 +237,7 @@ describe('StudentOverviewComponent', () => {
 
   it('maneja estados vacíos (sin asesor, sin acuerdos, sin tutoría) sin fallar', () => {
     fixture.detectChanges();
-    const req = http.expectOne('http://localhost:8000/api/records/10/');
+    const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockEmptyOverview);
     fixture.detectChanges();
 
@@ -253,7 +253,7 @@ describe('StudentOverviewComponent', () => {
 
   it('handles 403 error for unauthorized user', () => {
     fixture.detectChanges();
-    const req = http.expectOne('http://localhost:8000/api/records/10/');
+    const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush({ detail: 'Forbidden.' }, { status: 403, statusText: 'Forbidden' });
     fixture.detectChanges();
 
@@ -274,7 +274,7 @@ describe('StudentOverviewComponent', () => {
     });
 
     fixture.detectChanges();
-    const req = http.expectOne('http://localhost:8000/api/records/10/');
+    const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockOverview);
     fixture.detectChanges();
 
@@ -313,7 +313,7 @@ describe('StudentOverviewComponent', () => {
     });
 
     // Expect reload
-    const reloadReq = http.expectOne('http://localhost:8000/api/records/10/');
+    const reloadReq = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     reloadReq.flush(mockOverview);
     fixture.detectChanges();
 
@@ -326,7 +326,7 @@ describe('StudentOverviewComponent', () => {
       role: 'PROGRAM_COORDINATOR', roles: ['PROGRAM_COORDINATOR'], permissions: ['semesters.manage'],
     });
     fixture.detectChanges();
-    http.expectOne('http://localhost:8000/api/records/10/').flush(mockOverview);
+    http.expectOne('http://localhost:8000/api/v1/students/10/overview/').flush(mockOverview);
     fixture.componentInstance['mostrarFormSemestre'] = true;
 
     const comp = fixture.componentInstance;

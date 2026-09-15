@@ -53,7 +53,7 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.coordinator)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.data), 2)
+        self.assertEqual(len(res.data['results']), 2)
 
     def test_system_admin_cannot_read_academic_students(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
@@ -62,22 +62,22 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         retrieved = self.client.get(f'/api/v1/students/{self.student_1.id}/')
 
         self.assertEqual(listed.status_code, 200)
-        self.assertEqual(listed.data, [])
+        self.assertEqual(listed.data['results'], [])
         self.assertEqual(retrieved.status_code, 404)
 
     def test_tutor_sees_only_assigned_students(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor_1)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]['id'], self.student_1.id)
-        self.assertEqual(res.data[0]['matricula'], 'DOC-001')
+        self.assertEqual(len(res.data['results']), 1)
+        self.assertEqual(res.data['results'][0]['id'], self.student_1.id)
+        self.assertEqual(res.data['results'][0]['matricula'], 'DOC-001')
 
     def test_unassigned_tutor_sees_empty_list(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor_2)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.data), 0)
+        self.assertEqual(len(res.data['results']), 0)
 
     def test_deactivated_assignment_not_visible_to_tutor(self):
         self.assignment.delete()
@@ -85,14 +85,14 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor_1)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.data), 0)
+        self.assertEqual(len(res.data['results']), 0)
 
     def test_student_sees_only_own_record(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.student_user_1)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.data), 1)
-        self.assertEqual(res.data[0]['id'], self.student_1.id)
+        self.assertEqual(len(res.data['results']), 1)
+        self.assertEqual(res.data['results'][0]['id'], self.student_1.id)
 
     def test_get_queryset_direct_filtering(self):
         view = StudentViewSet()
@@ -149,9 +149,9 @@ class AcademicCommitteeHu04Tests(APITestCase):
 
     def test_relational_membership_governs_record_authorization(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor)}')
-        self.assertEqual(self.client.get(f'/api/records/{self.student.id}/').status_code, 404)
+        self.assertEqual(self.client.get(f'/api/v1/students/{self.student.id}/overview/').status_code, 404)
         CommitteeMembership.objects.create(committee=AcademicCommittee.objects.create(student=self.student), user=self.tutor, role='ASESOR')
-        self.assertEqual(self.client.get(f'/api/records/{self.student.id}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/v1/students/{self.student.id}/overview/').status_code, 200)
 
 
 class AuthenticationApiTests(APITestCase):
@@ -252,6 +252,7 @@ class AuthenticationApiTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(admin)}')
         listed = self.client.get('/api/v1/auth/users/')
         self.assertEqual(listed.status_code, 200)
+        self.assertIn('results', listed.data)
         updated = self.client.patch(
             f'/api/v1/auth/users/{self.user.id}/role/',
             {'role': self.user_model.Role.TUTOR},
@@ -455,8 +456,8 @@ class ScopeAuthorizationApiTests(APITestCase):
 
     def test_student_can_read_only_own_record(self):
         self.authenticate(self.student_user)
-        own_response = self.client.get(f'/api/records/{self.student.id}/')
-        other_response = self.client.get(f'/api/records/{self.other_student.id}/')
+        own_response = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
+        other_response = self.client.get(f'/api/v1/students/{self.other_student.id}/overview/')
 
         self.assertEqual(own_response.status_code, 200)
         self.assertEqual(other_response.status_code, 404)
@@ -469,10 +470,10 @@ class ScopeAuthorizationApiTests(APITestCase):
         CommitteeMembership.objects.create(committee=AcademicCommittee.objects.create(student=self.student), user=committee_member, role=CommitteeMembership.Role.COMMITTEE_MEMBER)
 
         self.authenticate(committee_member)
-        self.assertEqual(self.client.get(f'/api/records/{self.student.id}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/v1/students/{self.student.id}/overview/').status_code, 200)
 
         self.authenticate(self.coordinator)
-        self.assertEqual(self.client.get(f'/api/records/{self.student.id}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/v1/students/{self.student.id}/overview/').status_code, 200)
 
     def test_system_admin_cannot_read_student_record(self):
         admin = self.user_model.objects.create_user(
@@ -480,7 +481,7 @@ class ScopeAuthorizationApiTests(APITestCase):
             role=self.user_model.Role.SYSTEM_ADMIN,
         )
         self.authenticate(admin)
-        response = self.client.get(f'/api/records/{self.student.id}/')
+        response = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
         self.assertEqual(response.status_code, 403)
 
     def test_tutor_can_create_session_only_for_assigned_student(self):
@@ -493,10 +494,10 @@ class ScopeAuthorizationApiTests(APITestCase):
             'modalidad': 'VIRTUAL',
             'resumen': 'Seguimiento del avance.',
         }
-        allowed = self.client.post('/api/tutoring/', payload, format='json')
+        allowed = self.client.post('/api/v1/tutoring/', payload, format='json')
         payload['student'] = self.other_student.id
         payload['semester'] = self.other_semester.id
-        denied = self.client.post('/api/tutoring/', payload, format='json')
+        denied = self.client.post('/api/v1/tutoring/', payload, format='json')
 
         self.assertEqual(allowed.status_code, 201)
         self.assertEqual(denied.status_code, 403)
@@ -505,7 +506,7 @@ class ScopeAuthorizationApiTests(APITestCase):
     def test_tutor_cannot_use_another_students_semester(self):
         CommitteeMembership.objects.create(committee=AcademicCommittee.objects.get_or_create(student=self.student)[0], user=self.tutor, role=CommitteeMembership.Role.ADVISOR)
         self.authenticate(self.tutor)
-        response = self.client.post('/api/tutoring/', {
+        response = self.client.post('/api/v1/tutoring/', {
             'student': self.student.id,
             'semester': self.other_semester.id,
             'fecha_sesion': '2026-02-15',
@@ -518,12 +519,12 @@ class ScopeAuthorizationApiTests(APITestCase):
 
     def test_only_coordinator_can_read_global_academic_overview(self):
         self.authenticate(self.coordinator)
-        allowed = self.client.get('/api/academic/overview/')
+        allowed = self.client.get('/api/v1/academic/overview/')
         self.assertEqual(allowed.status_code, 200)
-        self.assertEqual(len(allowed.data), 2)
+        self.assertEqual(len(allowed.data['results']), 2)
 
         self.authenticate(self.student_user)
-        denied = self.client.get('/api/academic/overview/')
+        denied = self.client.get('/api/v1/academic/overview/')
         self.assertEqual(denied.status_code, 403)
 
 
@@ -643,9 +644,9 @@ class SuperAdminApiTests(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(audit_response.status_code, 200)
-        self.assertEqual(audit_response.data[0]['action'], 'ROLE_ASSIGNED')
-        self.assertEqual(audit_response.data[0]['details']['previous_role'], 'STUDENT')
-        self.assertEqual(audit_response.data[0]['details']['new_role'], 'TUTOR')
+        self.assertEqual(audit_response.data['results'][0]['action'], 'ROLE_ASSIGNED')
+        self.assertEqual(audit_response.data['results'][0]['details']['previous_role'], 'STUDENT')
+        self.assertEqual(audit_response.data['results'][0]['details']['new_role'], 'TUTOR')
 
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.student_user)}')
         self.assertEqual(self.client.get('/api/v1/admin/audit/').status_code, 403)
@@ -754,7 +755,7 @@ class SuperAdminApiTests(APITestCase):
             email='coord_hu06@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
-        response = self.client.get(f'/api/records/{self.student.id}/')
+        response = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
         self.assertEqual(response.status_code, 200)
         data = response.data
         self.assertIn('student', data)
@@ -844,7 +845,7 @@ class SuperAdminApiTests(APITestCase):
             student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(unassigned_tutor)}')
-        response = self.client.post('/api/tutoring/', {
+        response = self.client.post('/api/v1/tutoring/', {
             'student': self.student.id,
             'semester': sem.id,
             'fecha_sesion': '2025-02-01',
@@ -862,7 +863,7 @@ class SuperAdminApiTests(APITestCase):
             student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(assigned_tutor)}')
-        response = self.client.post('/api/tutoring/', {
+        response = self.client.post('/api/v1/tutoring/', {
             'student': self.student.id,
             'semester': sem.id,
             'fecha_sesion': '2025-02-01',
@@ -876,11 +877,10 @@ class SuperAdminApiTests(APITestCase):
             email='coord_hu06_sum@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
-        res1 = self.client.get(f'/api/students/{self.student.id}/academic-summary/')
-        self.assertEqual(res1.status_code, 200)
-        res2 = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
-        self.assertEqual(res2.status_code, 200)
-        self.assertEqual(res1.data['student']['matricula'], self.student.matricula)
+        response = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['student']['matricula'], self.student.matricula)
+        self.assertEqual(self.client.get(f'/api/students/{self.student.id}/academic-summary/').status_code, 404)
 
     def test_non_student_user_cannot_be_changed_to_student(self):
         tutor = self.user_model.objects.create_user(
@@ -896,7 +896,7 @@ class SuperAdminApiTests(APITestCase):
         self.assertIn('estudiante', response.data['detail'])
 
     def test_system_admin_cannot_access_academic_summary(self):
-        res = self.client.get(f'/api/students/{self.student.id}/academic-summary/')
+        res = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
         self.assertEqual(res.status_code, 403)
 
     def test_student_creation_supports_grammatical_gender(self):

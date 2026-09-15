@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -10,15 +11,18 @@ describe('RoleManagement', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [RoleManagement],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(RoleManagement);
     fixture.detectChanges();
-    http.expectOne('http://localhost:8000/api/v1/auth/users/').flush([{
+    http.expectOne('http://localhost:8000/api/v1/auth/users/').flush({ count: [{
       id: 1, email: 'student@example.com', first_name: 'Ana', last_name: 'Lopez', role: 'STUDENT',
       roles: ['STUDENT'], permissions: ['records.read.own'],
-    }]);
+    }].length, next: null, previous: null, results: [{
+      id: 1, email: 'student@example.com', first_name: 'Ana', last_name: 'Lopez', role: 'STUDENT',
+      roles: ['STUDENT'], permissions: ['records.read.own'],
+    }] });
     fixture.detectChanges();
   });
 

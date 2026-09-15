@@ -25,6 +25,10 @@ export class Home implements OnInit {
   protected isLeaving = false;
   protected estudiantes: StudentRecord[] = [];
   protected cargandoEstudiantes = false;
+  protected errorEstudiantes = '';
+  protected paginaEstudiantes = 1;
+  protected totalEstudiantes = 0;
+  protected siguientePagina = false;
 
   getWelcomeText(): string {
     const user = this.auth.user();
@@ -48,17 +52,22 @@ export class Home implements OnInit {
     }
   }
 
-  cargarEstudiantes(): void {
+  cargarEstudiantes(page = 1): void {
     this.cargandoEstudiantes = true;
+    this.errorEstudiantes = '';
     this.academicService
-      .getGlobalOverview()
+      .getGlobalOverview(page)
       .pipe(finalize(() => (this.cargandoEstudiantes = false)))
       .subscribe({
         next: (data) => {
-          this.estudiantes = data;
+          this.estudiantes = data.results;
+          this.totalEstudiantes = data.count;
+          this.paginaEstudiantes = page;
+          this.siguientePagina = data.next !== null;
         },
         error: () => {
           this.estudiantes = [];
+          this.errorEstudiantes = 'No fue posible cargar el padrón de estudiantes.';
         },
       });
   }

@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from './admin.service';
 import { InstitutionalRole } from './admin.models';
@@ -9,7 +10,7 @@ const FALLBACK_CREATE_ERROR = 'No fue posible crear la cuenta. Verifica los dato
 
 @Component({
   selector: 'app-institutional-users',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './institutional-users.html',
   styleUrls: ['./institutional-users.scss'],
 })

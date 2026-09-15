@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-const STUDENTS_API = `${environment.apiUrl}/v1/students`;
+const STUDENTS_API = `${environment.apiUrl}/students`;
 
 interface EstudianteRegistrado {
   id: number;

@@ -2,9 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
 import { Observable, catchError, finalize, shareReplay, tap, throwError } from 'rxjs';
 import { AuthenticatedUser, AuthResponse, LoginCredentials, Permission, RoleAssignment, UserRole } from './auth.models';
+import { PaginatedResponse } from '../../shared/pagination';
 import { environment } from '../../../environments/environment';
 
-const AUTH_API = `${environment.apiUrl}/v1/auth`;
+const AUTH_API = `${environment.apiUrl}/auth`;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -56,7 +57,7 @@ export class AuthService {
     return this.refreshRequest;
   }
 
-  loadUsers(): Observable<AuthenticatedUser[]> { return this.http.get<AuthenticatedUser[]>(`${AUTH_API}/users/`); }
+  loadUsers(): Observable<PaginatedResponse<AuthenticatedUser>> { return this.http.get<PaginatedResponse<AuthenticatedUser>>(`${AUTH_API}/users/`); }
   assignRole(userId: number, role: UserRole): Observable<AuthenticatedUser> {
     return this.http.patch<AuthenticatedUser>(`${AUTH_API}/users/${userId}/role/`, { role } satisfies RoleAssignment);
   }

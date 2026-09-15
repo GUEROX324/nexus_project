@@ -1,4 +1,5 @@
 from rest_framework import mixins, status, viewsets
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -30,6 +31,18 @@ from .serializers import (
     TutoringSessionSerializer,
     UserSerializer,
 )
+
+
+class NexusPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+def paginated_response(request, queryset, serializer_class):
+    paginator = NexusPagination()
+    page = paginator.paginate_queryset(queryset, request)
+    return paginator.get_paginated_response(serializer_class(page, many=True).data)
 
 
 class LoginView(APIView):
@@ -72,7 +85,7 @@ class UserRoleListView(APIView):
 
     def get(self, request):
         users = CustomUser.objects.order_by('email')
-        return Response(UserSerializer(users, many=True).data)
+        return paginated_response(request, users, UserSerializer)
 
 
 class UserRoleUpdateView(APIView):
@@ -140,7 +153,7 @@ class CommitteeAssignmentListCreateView(APIView):
 
     def get(self, request):
         committees = AcademicCommittee.objects.select_related('student').prefetch_related('memberships__user').order_by('student__matricula')
-        return Response(CommitteeAssignmentReadSerializer(committees, many=True).data)
+        return paginated_response(request, committees, CommitteeAssignmentReadSerializer)
 
     @transaction.atomic
     def post(self, request):
@@ -163,7 +176,7 @@ class AdminStudentListView(APIView):
 
     def get(self, request):
         students = Student.objects.order_by('matricula')
-        return Response(StudentRecordSerializer(students, many=True).data)
+        return paginated_response(request, students, StudentRecordSerializer)
 
 class CommitteeAssignmentUpdateView(APIView):
     permission_classes = [CanManageCommittee]
@@ -182,7 +195,7 @@ class AdminAuditLogListView(APIView):
 
     def get(self, request):
         logs = AdminAuditLog.objects.select_related('actor', 'target_user').order_by('-created_at')
-        return Response(AdminAuditLogSerializer(logs, many=True).data)
+        return paginated_response(request, logs, AdminAuditLogSerializer)
 
 
 class StudentRecordView(APIView):
@@ -218,6 +231,7 @@ class StudentViewSet(
 ):
     permission_classes = [IsAuthenticated]
     serializer_class = StudentRecordSerializer
+    pagination_class = NexusPagination
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -273,7 +287,7 @@ class GlobalAcademicOverviewView(APIView):
 
     def get(self, request):
         students = Student.objects.filter(estatus_activo=True).order_by('matricula')
-        return Response(StudentRecordSerializer(students, many=True).data)
+        return paginated_response(request, students, StudentRecordSerializer)
 
 
 class StudentSemesterListCreateView(APIView):

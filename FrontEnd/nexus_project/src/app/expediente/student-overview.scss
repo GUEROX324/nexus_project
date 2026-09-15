@@ -554,3 +554,8 @@ $badge-overdue-text: #A14D98;
   font-style: italic;
   margin: 0;
 }
+
+.field-full { width: 100%; }
+.error-msg { color: var(--danger-text); margin-top: .5rem; }
+.success-msg { color: var(--badge-active-text); margin-top: .5rem; }
+caption { text-align: left; padding: .5rem; font-weight: 600; }
