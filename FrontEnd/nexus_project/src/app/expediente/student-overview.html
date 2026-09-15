@@ -332,12 +332,15 @@
               </label>
               <label>
                 Fecha de inicio
-                <input type="date" formControlName="fecha_inicio" />
+                <input type="date" formControlName="fecha_inicio" aria-describedby="semester-date-error" />
               </label>
               <label>
                 Fecha de fin
-                <input type="date" formControlName="fecha_fin" />
+                <input type="date" formControlName="fecha_fin" aria-describedby="semester-date-error" [attr.aria-invalid]="semForm.hasError('dateRange')" />
               </label>
+              @if (semForm.hasError('dateRange') && semForm.touched) {
+                <p id="semester-date-error" class="error-inline" role="alert">La fecha de fin debe ser posterior o igual a la fecha de inicio.</p>
+              }
               <label class="checkbox-label">
                 <input type="checkbox" formControlName="is_active" />
                 Semestre activo

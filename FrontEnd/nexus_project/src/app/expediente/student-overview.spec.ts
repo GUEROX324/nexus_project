@@ -294,7 +294,7 @@ describe('StudentOverviewComponent', () => {
 
     comp.registrarSemestre();
 
-    const postReq = http.expectOne('http://localhost:8000/api/students/10/semesters/');
+    const postReq = http.expectOne('http://localhost:8000/api/v1/students/10/semesters/');
     expect(postReq.request.method).toBe('POST');
     expect(postReq.request.body).toEqual({
       numero: 3,
@@ -318,5 +318,25 @@ describe('StudentOverviewComponent', () => {
     fixture.detectChanges();
 
     expect(comp['mostrarFormSemestre']).toBeFalse();
+  });
+
+  it('rejects a semester whose end date is before its start date accessibly', () => {
+    authService.user.set({
+      id: 99, email: 'coordinator@nexus.edu', first_name: 'Coord', last_name: 'Nexus',
+      role: 'PROGRAM_COORDINATOR', roles: ['PROGRAM_COORDINATOR'], permissions: ['semesters.manage'],
+    });
+    fixture.detectChanges();
+    http.expectOne('http://localhost:8000/api/records/10/').flush(mockOverview);
+    fixture.componentInstance['mostrarFormSemestre'] = true;
+
+    const comp = fixture.componentInstance;
+    comp['semForm'].patchValue({ fecha_inicio: '2027-06-30', fecha_fin: '2027-01-15' });
+    comp.registrarSemestre();
+    fixture.detectChanges();
+
+    expect(comp['semForm'].hasError('dateRange')).toBeTrue();
+    const error = fixture.nativeElement.querySelector('#semester-date-error');
+    expect(error?.getAttribute('role')).toBe('alert');
+    expect(http.match((request) => request.method === 'POST').length).toBe(0);
   });
 });

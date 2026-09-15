@@ -27,10 +27,10 @@ export class AcademicService {
   }
 
   getStudentSemesters(studentId: number): Observable<Semester[]> {
-    return this.http.get<Semester[]>(`${API}/students/${studentId}/semesters/`);
+    return this.http.get<Semester[]>(`${API}/v1/students/${studentId}/semesters/`);
   }
 
   createSemester(studentId: number, data: CreateSemesterData): Observable<Semester> {
-    return this.http.post<Semester>(`${API}/students/${studentId}/semesters/`, data);
+    return this.http.post<Semester>(`${API}/v1/students/${studentId}/semesters/`, data);
   }
 }

@@ -666,7 +666,7 @@ class SuperAdminApiTests(APITestCase):
             'fecha_fin': '2025-06-30',
             'is_active': True,
         }
-        response = self.client.post(f'/api/students/{self.student.id}/semesters/', payload, format='json')
+        response = self.client.post(f'/api/v1/students/{self.student.id}/semesters/', payload, format='json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['numero'], 1)
         self.assertEqual(response.data['student'], self.student.id)
@@ -682,7 +682,7 @@ class SuperAdminApiTests(APITestCase):
             'fecha_inicio': '2025-01-15',
             'fecha_fin': '2025-06-30',
         }
-        response = self.client.post(f'/api/students/{self.student.id}/semesters/', payload, format='json')
+        response = self.client.post(f'/api/v1/students/{self.student.id}/semesters/', payload, format='json')
         self.assertEqual(response.status_code, 400)
         self.assertIn('numero', response.data)
 
@@ -696,7 +696,7 @@ class SuperAdminApiTests(APITestCase):
             'fecha_inicio': '2025-06-30',
             'fecha_fin': '2025-01-15',
         }
-        response = self.client.post(f'/api/students/{self.student.id}/semesters/', payload, format='json')
+        response = self.client.post(f'/api/v1/students/{self.student.id}/semesters/', payload, format='json')
         self.assertEqual(response.status_code, 400)
         self.assertIn('fecha_fin', response.data)
 
@@ -713,22 +713,41 @@ class SuperAdminApiTests(APITestCase):
             'fecha_inicio': '2025-01-15',
             'fecha_fin': '2025-06-30',
         }
-        response = self.client.post(f'/api/students/{self.student.id}/semesters/', payload, format='json')
+        response = self.client.post(f'/api/v1/students/{self.student.id}/semesters/', payload, format='json')
         self.assertEqual(response.status_code, 400)
         self.assertIn('numero', response.data)
 
-    def test_hu05_unauthorized_user_cannot_create_semester(self):
-        student_user = self.user_model.objects.create_user(
-            email='estudiante_sem@test.com', password='password123', role=self.user_model.Role.STUDENT
+    def test_hu05_only_coordinator_can_write_semesters(self):
+        semester = Semester.objects.create(
+            student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(student_user)}')
-        payload = {
-            'numero': 1,
-            'fecha_inicio': '2025-01-15',
-            'fecha_fin': '2025-06-30',
-        }
-        response = self.client.post(f'/api/students/{self.student.id}/semesters/', payload, format='json')
-        self.assertEqual(response.status_code, 403)
+        payload = {'numero': 2, 'fecha_inicio': '2025-07-01', 'fecha_fin': '2025-12-15'}
+        for role in (self.user_model.Role.ACADEMIC_ADMIN, self.user_model.Role.SYSTEM_ADMIN):
+            with self.subTest(role=role):
+                user = self.user_model.objects.create_user(
+                    email=f'{role.lower()}-sem@test.com', password='password123', role=role
+                )
+                self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(user)}')
+                self.assertEqual(self.client.post(f'/api/v1/students/{self.student.id}/semesters/', payload, format='json').status_code, 403)
+                self.assertEqual(self.client.patch(
+                    f'/api/v1/students/{self.student.id}/semesters/{semester.id}/', {'is_active': False}, format='json'
+                ).status_code, 403)
+
+    def test_hu05_read_access_and_unversioned_alias_removed(self):
+        semester = Semester.objects.create(
+            student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
+        )
+        academic_admin = self.user_model.objects.create_user(
+            email='academic-sem@test.com', password='password123', role=self.user_model.Role.ACADEMIC_ADMIN
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(academic_admin)}')
+        response = self.client.get(f'/api/v1/students/{self.student.id}/semesters/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]['id'], semester.id)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
+        self.assertEqual(self.client.get(f'/api/v1/students/{self.student.id}/semesters/').status_code, 403)
+        self.assertEqual(self.client.get(f'/api/students/{self.student.id}/semesters/').status_code, 404)
 
     def test_hu06_student_overview_contains_all_six_categories(self):
         coordinator = self.user_model.objects.create_user(

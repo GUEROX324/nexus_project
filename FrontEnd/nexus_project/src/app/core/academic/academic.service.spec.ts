@@ -42,7 +42,7 @@ describe('AcademicService - Semesters (HU-05)', () => {
       expect(semesters[0].is_active).toBeTrue();
     });
 
-    const req = httpMock.expectOne('http://localhost:8000/api/students/10/semesters/');
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/students/10/semesters/');
     expect(req.request.method).toBe('GET');
     req.flush(mockSemesters);
   });
@@ -66,7 +66,7 @@ describe('AcademicService - Semesters (HU-05)', () => {
       expect(res.numero).toBe(2);
     });
 
-    const req = httpMock.expectOne('http://localhost:8000/api/students/10/semesters/');
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/students/10/semesters/');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(newSem);
     req.flush(createdSem);

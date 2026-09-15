@@ -1,11 +1,16 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AcademicService } from '../core/academic/academic.service';
 import { StudentOverview, Semester } from '../core/academic/academic.models';
 import { AuthService } from '../core/auth/auth.service';
+
+function validSemesterDates(control: AbstractControl): ValidationErrors | null {
+  const { fecha_inicio, fecha_fin } = control.value;
+  return fecha_inicio && fecha_fin && fecha_fin < fecha_inicio ? { dateRange: true } : null;
+}
 
 @Component({
   selector: 'app-student-overview',
@@ -38,7 +43,7 @@ export class StudentOverviewComponent implements OnInit {
     fecha_inicio: ['', Validators.required],
     fecha_fin: ['', Validators.required],
     is_active: [true],
-  });
+  }, { validators: validSemesterDates });
 
   protected readonly tutoriaForm = this.fb.nonNullable.group({
     semester: [0, Validators.required],
