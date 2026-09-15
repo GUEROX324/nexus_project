@@ -175,7 +175,18 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 16 * 1024 * 1024
 
 MAILERS = {
     'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        'BACKEND': os.getenv(
+            'DJANGO_EMAIL_BACKEND',
+            'django.core.mail.backends.console.EmailBackend' if DEBUG
+            else 'django.core.mail.backends.smtp.EmailBackend',
+        ),
+        'OPTIONS': {
+            'host': os.getenv('DJANGO_EMAIL_HOST', 'localhost'),
+            'port': int(os.getenv('DJANGO_EMAIL_PORT', '25')),
+            'username': os.getenv('DJANGO_EMAIL_HOST_USER', ''),
+            'password': os.getenv('DJANGO_EMAIL_HOST_PASSWORD', ''),
+            'use_tls': env_bool('DJANGO_EMAIL_USE_TLS', not DEBUG),
+        },
     },
 }
 
