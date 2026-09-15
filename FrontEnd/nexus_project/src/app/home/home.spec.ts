@@ -63,6 +63,28 @@ describe('Home Component', () => {
     expect(compiled.textContent).toContain('Coordinadora del programa');
   });
 
+  it('links student expediente using student_id not user id (HU-06)', () => {
+    userSignal.set({
+      id: 99,
+      email: 'ana.morales@nexus.edu',
+      first_name: 'Ana Laura',
+      last_name: 'Morales Vega',
+      role: 'STUDENT',
+      roles: ['STUDENT'],
+      permissions: ['records.read.own'],
+      student_id: 7,
+      grammatical_gender: 'FEMININE',
+    });
+
+    fixture.detectChanges();
+    const link = (fixture.nativeElement as HTMLElement).querySelector(
+      'a.btn-action[href]',
+    ) as HTMLAnchorElement | null;
+    expect(link).toBeTruthy();
+    expect(link?.getAttribute('href')).toContain('/expediente/7');
+    expect(link?.getAttribute('href')).not.toContain('/expediente/99');
+  });
+
   it('falls back to neutral greeting and role when unspecified', () => {
     userSignal.set({
       id: 2,

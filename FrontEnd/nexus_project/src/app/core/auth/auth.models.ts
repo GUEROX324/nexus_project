@@ -8,6 +8,8 @@ export interface AuthenticatedUser {
   role: UserRole;
   roles: UserRole[];
   permissions: Permission[];
+  /** PK de Student (expediente). Solo aplica a rol STUDENT; no confundir con user.id. */
+  student_id?: number | null;
   grammatical_gender?: GrammaticalGender;
 }
 

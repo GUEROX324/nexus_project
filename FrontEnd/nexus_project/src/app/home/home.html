@@ -20,8 +20,8 @@
       <p class="role">Rol: {{ getRoleLabel(user.role) }}</p>
 
       <div class="actions-row">
-        @if (user.role === 'STUDENT' && auth.user()) {
-          <a [routerLink]="['/expediente', auth.user()!.id]" class="btn-action">Mi expediente académico</a>
+        @if (user.role === 'STUDENT' && user.student_id) {
+          <a [routerLink]="['/expediente', user.student_id]" class="btn-action">Mi expediente académico</a>
         }
 
         @if (auth.hasPermission('students.create')) {
