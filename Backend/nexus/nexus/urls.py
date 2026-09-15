@@ -37,12 +37,14 @@ from .views import (
     TutoringSessionViewSet,
     UserRoleListView,
     UserRoleUpdateView,
+    EvidenceViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'students', StudentViewSet, basename='students')
 router.register(r'tutoring-sessions', TutoringSessionViewSet, basename='tutoring-sessions')
 router.register(r'agreements', AgreementViewSet, basename='agreements')
+router.register(r'evidence', EvidenceViewSet, basename='evidence')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

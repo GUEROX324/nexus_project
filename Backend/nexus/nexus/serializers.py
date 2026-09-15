@@ -24,11 +24,67 @@ from .models import (
     TutoringParticipant,
     TutoringObservation,
     AgreementAuditLog,
+    Evidence,
 )
 from .permissions import permissions_for_user
 
 
 INVALID_CREDENTIALS = 'Correo o contrasena incorrectos.'
+MAX_EVIDENCE_BYTES = 15 * 1024 * 1024
+EVIDENCE_SIGNATURES = {
+    'pdf': (b'%PDF-', 'application/pdf'),
+    'png': (b'\x89PNG\r\n\x1a\n', 'image/png'),
+    'jpg': (b'\xff\xd8\xff', 'image/jpeg'),
+    'jpeg': (b'\xff\xd8\xff', 'image/jpeg'),
+    'docx': (b'PK\x03\x04', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+    'zip': (b'PK\x03\x04', 'application/zip'),
+}
+
+
+class EvidenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Evidence
+        fields = ('id', 'student', 'semester', 'tipo', 'actividad_tipo', 'actividad_id', 'titulo',
+                  'descripcion', 'archivo_adjunto', 'mime_type', 'file_size_bytes', 'fecha_carga',
+                  'created_by', 'created_at')
+        read_only_fields = ('id', 'tipo', 'mime_type', 'file_size_bytes', 'fecha_carga', 'created_by', 'created_at')
+
+    def validate_archivo_adjunto(self, upload):
+        if upload.size > MAX_EVIDENCE_BYTES:
+            raise serializers.ValidationError('El archivo no puede superar 15 MiB.')
+        extension = upload.name.rsplit('.', 1)[-1].lower() if '.' in upload.name else ''
+        expected = EVIDENCE_SIGNATURES.get(extension)
+        header = upload.read(8)
+        upload.seek(0)
+        if not expected or not header.startswith(expected[0]):
+            raise serializers.ValidationError('La extensión no coincide con el contenido del archivo.')
+        if upload.content_type != expected[1]:
+            raise serializers.ValidationError('El tipo MIME no coincide con el archivo.')
+        upload.verified_mime_type = expected[1]
+        return upload
+
+    def validate(self, attrs):
+        semester = attrs.get('semester')
+        student = attrs.get('student')
+        if semester and semester.student_id != student.id:
+            raise serializers.ValidationError({'semester': 'El semestre no pertenece al estudiante.'})
+        return attrs
+
+    def create(self, validated_data):
+        upload = validated_data['archivo_adjunto']
+        evidence = Evidence(
+            tipo=Evidence.EvidenceType.LOCAL_FILE,
+            mime_type=upload.verified_mime_type,
+            file_size_bytes=upload.size,
+            created_by=self.context['request'].user,
+            **validated_data,
+        )
+        try:
+            evidence.save()
+        except Exception:
+            evidence.archivo_adjunto.delete(save=False)
+            raise
+        return evidence
 
 
 class UserSerializer(serializers.ModelSerializer):

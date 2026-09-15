@@ -25,6 +25,7 @@ from .models import (
     TutoringSession,
     TutoringParticipant,
     TutoringObservation,
+    Evidence,
 )
 from .permissions import (
     CanAssignRoles,
@@ -52,6 +53,7 @@ from .serializers import (
     AgreementAuditLogSerializer,
     AgreementStatusSerializer,
     UserSerializer,
+    EvidenceSerializer,
 )
 
 
@@ -413,6 +415,36 @@ class AgreementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     @action(detail=True, methods=['get'], url_path='audit-log')
     def audit_log(self, request, pk=None):
         return Response(AgreementAuditLogSerializer(self.get_object().audit_logs.select_related('user'), many=True).data)
+
+
+class EvidenceViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = EvidenceSerializer
+    pagination_class = NexusPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Evidence.objects.filter(
+            Q(student__user=user) | Q(student__academic_committee__memberships__user=user)
+        )
+        if student := self.request.query_params.get('student'):
+            queryset = queryset.filter(student_id=student)
+        return queryset.distinct().order_by('-created_at')
+
+    def perform_create(self, serializer):
+        student = serializer.validated_data['student']
+        if not can_access_student(self.request.user, student):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('No puede cargar evidencias para este estudiante.')
+        try:
+            with transaction.atomic():
+                evidence = serializer.save()
+        except Exception:
+            upload = serializer.validated_data.get('archivo_adjunto')
+            if upload and getattr(upload, 'name', None):
+                Evidence._meta.get_field('archivo_adjunto').storage.delete(upload.name)
+            raise
+        return evidence
 
 
 class GlobalAcademicOverviewView(APIView):
