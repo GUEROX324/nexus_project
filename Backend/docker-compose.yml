@@ -6,8 +6,11 @@ services:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-django-insecure-docker-development-only}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200,http://127.0.0.1:4200}
+      SQLITE_PATH: /app/nexus/data/db.sqlite3
     ports:
       - "8000:8000"
+    volumes:
+      - nexus_sqlite:/app/nexus/data
 
   frontend:
     build:
@@ -16,3 +19,6 @@ services:
       - "4200:4200"
     depends_on:
       - web
+
+volumes:
+  nexus_sqlite:

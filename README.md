@@ -22,7 +22,7 @@ El proyecto está diseñado bajo una arquitectura de **Monolito Modular Desacopl
 
 ### 2.1. Prerrequisitos
 - Python 3.11+
-- Node.js 20.x o superior con npm
+- Node.js 20.x o superior con Corepack y pnpm 11.20.0
 - Git
 
 ---
@@ -69,12 +69,13 @@ El proyecto está diseñado bajo una arquitectura de **Monolito Modular Desacopl
 
 2. **Instalar dependencias de Node:**
    ```bash
-   npm install
+   corepack enable
+   pnpm install --frozen-lockfile
    ```
 
 3. **Iniciar el servidor de desarrollo con Proxy integrado:**
    ```bash
-   npm start
+   pnpm start
    ```
    *El frontend iniciará en `http://localhost:4200/` con proxy inverso automático hacia Django (`http://127.0.0.1:8000`).*
 
