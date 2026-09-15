@@ -21,6 +21,7 @@ from .models import (
     Student,
     ThesisProgress,
     TutoringSession,
+    TutoringParticipant,
 )
 from .permissions import (
     CanAssignRoles,
@@ -42,6 +43,7 @@ from .serializers import (
     StudentRecordSerializer,
     TutoringSessionCreateSerializer,
     TutoringSessionSerializer,
+    TutoringParticipantSerializer,
     UserSerializer,
 )
 
@@ -325,6 +327,18 @@ class TutoringSessionViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('No puede eliminar esta tutoría.')
         instance.delete()
+
+    from rest_framework.decorators import action
+
+    @action(detail=True, methods=['get', 'post'], url_path='participants')
+    def participants(self, request, pk=None):
+        session = self.get_object()
+        if request.method == 'GET':
+            return Response(TutoringParticipantSerializer(session.participants.select_related('user'), many=True).data)
+        serializer = TutoringParticipantSerializer(data=request.data, context={'session': session})
+        serializer.is_valid(raise_exception=True)
+        participant = serializer.save(session=session)
+        return Response(TutoringParticipantSerializer(participant).data, status=status.HTTP_201_CREATED)
 
 
 class GlobalAcademicOverviewView(APIView):

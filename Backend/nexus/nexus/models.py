@@ -163,9 +163,16 @@ class TutoringSession(models.Model):
 
 
 class TutoringParticipant(models.Model):
+	class SessionRole(models.TextChoices):
+		STUDENT = 'ESTUDIANTE', 'Estudiante'
+		ADVISOR = 'ASESOR_PRINCIPAL', 'Asesor principal'
+		CO_ADVISOR = 'COASESOR', 'Coasesor'
+		MEMBER = 'MIEMBRO_COMITE', 'Miembro del comité'
+
 	session = models.ForeignKey(TutoringSession, on_delete=models.CASCADE, related_name='participants')
 	user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='tutoring_attendances')
-	rol_en_sesion = models.CharField(max_length=30)
+	rol_en_sesion = models.CharField(max_length=30, choices=SessionRole.choices)
+
 	asistencia = models.BooleanField(default=True)
 	notas = models.CharField(max_length=255, blank=True, default='')
 
