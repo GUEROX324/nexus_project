@@ -47,6 +47,22 @@ describe('AcademicService - Semesters (HU-05)', () => {
     req.flush(mockSemesters);
   });
 
+  it('usa el endpoint v1 real para crear tutorías (HU-07)', () => {
+    const data = { student: 10, semester: 2, fecha_sesion: '2026-02-01', modalidad: 'VIRTUAL' as const, resumen: 'Avance' };
+    service.createTutoringSession(data).subscribe();
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/tutoring-sessions/');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(data);
+    req.flush({ id: 1, ...data });
+  });
+
+  it('combina filtros en el endpoint v1 paginado de acuerdos (HU-14)', () => {
+    service.getAgreements({ page: 2, student: 10, estado: 'PENDIENTE', vencido: true }).subscribe();
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/agreements/?page=2&student=10&estado=PENDIENTE&vencido=true');
+    expect(req.request.method).toBe('GET');
+    req.flush({ count: 0, next: null, previous: null, results: [] });
+  });
+
   it('debe registrar un nuevo semestre (1 al 6)', () => {
     const newSem: CreateSemesterData = {
       numero: 2,
