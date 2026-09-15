@@ -468,6 +468,8 @@ class TutoringParticipantSerializer(serializers.ModelSerializer):
 
     def validate_user(self, user):
         session = self.context['session']
+        if session.participants.filter(user=user).exists():
+            raise serializers.ValidationError('El participante ya está registrado en la sesión.')
         if user.id == session.student.user_id or CommitteeMembership.objects.filter(
             committee__student=session.student, user=user
         ).exists():
