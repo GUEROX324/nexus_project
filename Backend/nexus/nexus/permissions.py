@@ -40,11 +40,6 @@ class CanReadGlobalAcademics(BasePermission):
 class CanCreateTutoring(BasePermission):
     def has_permission(self, request, view):
         return 'tutoring.create' in permissions_for_user(request.user)
-    
-    
-class CanCreateStudent(BasePermission):
-    def has_permission(self, request, view):
-        return 'students.create' in permissions_for_user(request.user)
 
 
 class CanManageCommittee(BasePermission):

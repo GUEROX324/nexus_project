@@ -346,46 +346,11 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(logout_response.data, {'logout': True})
         self.assertEqual(refresh_response.status_code, 401)
 
-    def test_register_creates_student_and_returns_authenticated_session(self):
-        response = self.client.post(
-            '/api/auth/register/',
-            {
-                'first_name': 'Luis',
-                'last_name': 'Gomez',
-                'email': 'luis@example.com',
-                'password': 'Segura-12345',
-                'matricula': 'DOC-001',
-                'programa_doctoral': 'Doctorado en Ciencias',
-                'cohorte': '2026',
-            },
-            format='json',
-        )
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['user']['role'], 'STUDENT')
-        self.assertIn('access', response.data)
-        self.assertIn('refresh', response.data)
-        user = self.user_model.objects.get(email='luis@example.com')
-        student = Student.objects.get(user=user)
-        self.assertEqual(student.matricula, 'DOC-001')
-
-    def test_register_rejects_duplicate_email_and_matricula(self):
-        response = self.client.post(
-            '/api/auth/register/',
-            {
-                'first_name': 'Otra',
-                'last_name': 'Persona',
-                'email': self.user.email,
-                'password': 'Segura-12345',
-                'matricula': 'DOC-001',
-                'programa_doctoral': 'Doctorado en Ciencias',
-                'cohorte': '2026',
-            },
-            format='json',
-        )
-
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('email', response.data)
+    def test_registration_routes_do_not_exist(self):
+        payload = {'email': 'new@example.com', 'password': 'Segura-12345'}
+        for url in ('/api/v1/auth/register/', '/api/auth/register/', '/api/coordinator/students/'):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.post(url, payload, format='json').status_code, 404)
 
     def test_non_student_users_do_not_require_student_profile(self):
         roles = [
@@ -537,6 +502,48 @@ class ScopeAuthorizationApiTests(APITestCase):
         self.authenticate(self.student_user)
         denied = self.client.get('/api/academic/overview/')
         self.assertEqual(denied.status_code, 403)
+
+
+class StudentCreationHu03Tests(APITestCase):
+    def setUp(self):
+        self.user_model = get_user_model()
+        self.coordinator = self.user_model.objects.create_user(
+            email='hu03-coordinator@example.com', password='Correcta-12345', role=self.user_model.Role.PROGRAM_COORDINATOR
+        )
+        self.payload = {
+            'first_name': 'Ana', 'last_name': 'Lopez', 'email': 'hu03-student@example.com',
+            'password': 'Correcta-12345', 'matricula': 'A', 'programa_doctoral': 'Doctorado en Ciencias',
+            'fecha_ingreso': '2026-01-01', 'cohorte': '2026-A',
+        }
+
+    def post(self, matricula='A', user=None, email=None):
+        self.client.credentials(**({'HTTP_AUTHORIZATION': f'Bearer {jwt_for(user)}'} if user else {}))
+        return self.client.post('/api/v1/students/', {
+            **self.payload, 'matricula': matricula, 'email': email or f'{matricula.lower()}@example.com'
+        }, format='json')
+
+    def test_only_program_coordinator_can_create(self):
+        self.assertEqual(self.post().status_code, 401)
+        for role in (self.user_model.Role.STUDENT, self.user_model.Role.TUTOR, self.user_model.Role.ACADEMIC_ADMIN, self.user_model.Role.SYSTEM_ADMIN):
+            with self.subTest(role=role):
+                user = self.user_model.objects.create_user(email=f'{role.lower()}@example.com', password='Correcta-12345', role=role)
+                self.assertEqual(self.post(user=user).status_code, 403)
+        self.assertEqual(self.post(user=self.coordinator).status_code, 201)
+
+    def test_matricula_lengths_and_characters(self):
+        for index, length in enumerate((1, 9, 10, 20)):
+            with self.subTest(length=length):
+                self.assertEqual(self.post('A' * length, self.coordinator, f'valid-{index}@example.com').status_code, 201)
+        self.assertEqual(self.post('A' * 21, self.coordinator, 'too-long@example.com').status_code, 400)
+        self.assertEqual(self.post('INVALID_1', self.coordinator, 'invalid-char@example.com').status_code, 400)
+
+    def test_matricula_is_trimmed_uppercased_and_unique_case_insensitively(self):
+        first = self.post('  doc-2026-abc  ', self.coordinator, 'first@example.com')
+        duplicate = self.post('DOC-2026-ABC', self.coordinator, 'second@example.com')
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(first.data['matricula'], 'DOC-2026-ABC')
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertIn('matricula', duplicate.data)
 
 
 class SuperAdminApiTests(APITestCase):
@@ -774,7 +781,7 @@ class SuperAdminApiTests(APITestCase):
             email='coord_val@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
-        response = self.client.post('/api/coordinator/students/', {
+        response = self.client.post('/api/v1/students/', {
             'first_name': 'Juan123',
             'last_name': 'Perez',
             'email': 'juan123@example.com',
@@ -787,17 +794,17 @@ class SuperAdminApiTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('first_name', response.data)
 
-    def test_form_validation_matricula_max_9_chars(self):
+    def test_form_validation_matricula_max_20_chars(self):
         coord = self.user_model.objects.create_user(
             email='coord_val2@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
-        response = self.client.post('/api/coordinator/students/', {
+        response = self.client.post('/api/v1/students/', {
             'first_name': 'Juan',
             'last_name': 'Perez',
             'email': 'juanval2@example.com',
             'password': 'Password-1234',
-            'matricula': '1234567890',  # 10 chars -> exceeds 9
+            'matricula': '123456789012345678901',
             'programa_doctoral': 'Doctorado en Ciencias',
             'fecha_ingreso': '2024-01-01',
             'cohorte': '2024-A',
@@ -896,9 +903,13 @@ class SuperAdminApiTests(APITestCase):
         res = self.client.get(f'/api/students/{self.student.id}/academic-summary/')
         self.assertEqual(res.status_code, 403)
 
-    def test_user_serializer_and_registration_support_grammatical_gender(self):
+    def test_student_creation_supports_grammatical_gender(self):
+        coordinator = self.user_model.objects.create_user(
+            email='gender_coord@example.com', password='Segura-12345', role=self.user_model.Role.PROGRAM_COORDINATOR
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
         response = self.client.post(
-            '/api/auth/register/',
+            '/api/v1/students/',
             {
                 'first_name': 'Valeria',
                 'last_name': 'Rios',
@@ -906,16 +917,17 @@ class SuperAdminApiTests(APITestCase):
                 'password': 'Segura-12345',
                 'matricula': 'DOC-099',
                 'programa_doctoral': 'Doctorado en Ciencias',
+                'fecha_ingreso': '2026-01-01',
                 'cohorte': '2026',
                 'grammatical_gender': 'FEMININE',
             },
             format='json',
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['user']['grammatical_gender'], 'FEMININE')
+        student_user = self.user_model.objects.get(email='valeria@example.com')
+        self.assertEqual(student_user.grammatical_gender, 'FEMININE')
 
-        token = response.data['access']
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(student_user)}')
         me_response = self.client.get('/api/v1/auth/me/')
         self.assertEqual(me_response.status_code, 200)
         self.assertEqual(me_response.data['grammatical_gender'], 'FEMININE')

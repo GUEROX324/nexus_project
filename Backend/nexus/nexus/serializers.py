@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 NAME_REGEX_VALIDATOR = RegexValidator(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', 'Solo se permiten letras y espacios.')
-MATRICULA_REGEX_VALIDATOR = RegexValidator(r'^[a-zA-Z0-9-]{1,9}$', 'La matrícula debe ser de hasta 9 caracteres.')
+MATRICULA_REGEX_VALIDATOR = RegexValidator(r'^[a-zA-Z0-9-]{1,20}$', 'La matrícula debe contener hasta 20 caracteres alfanuméricos o guiones.')
 
 from .models import (
     AcademicCommittee,
@@ -315,7 +315,7 @@ class StudentCreateSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False)
-    matricula = serializers.CharField(max_length=9, validators=[MATRICULA_REGEX_VALIDATOR])
+    matricula = serializers.CharField(max_length=20, validators=[MATRICULA_REGEX_VALIDATOR])
     programa_doctoral = serializers.CharField(max_length=255)
     fecha_ingreso = serializers.DateField()
     cohorte = serializers.CharField(max_length=20)
@@ -338,12 +338,13 @@ class StudentCreateSerializer(serializers.Serializer):
         return normalized_email
 
     def validate_matricula(self, value):
-        if Student.objects.filter(matricula=value).exists():
+        normalized = value.strip().upper()
+        if Student.objects.filter(matricula__iexact=normalized).exists():
             raise serializers.ValidationError(
                 'Esta matricula ya esta registrada.'
             )
 
-        return value
+        return normalized
 
     def validate_password(self, value):
         password_validation.validate_password(value)
@@ -438,59 +439,6 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError(INVALID_CREDENTIALS)
         attrs['user'] = user
         return attrs
-
-
-class RegistrationSerializer(serializers.Serializer):
-    first_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
-    last_name = serializers.CharField(max_length=150, validators=[NAME_REGEX_VALIDATOR])
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, trim_whitespace=False)
-    matricula = serializers.CharField(max_length=9, validators=[MATRICULA_REGEX_VALIDATOR])
-    programa_doctoral = serializers.CharField(max_length=255)
-    cohorte = serializers.CharField(max_length=20)
-    grammatical_gender = serializers.ChoiceField(
-        choices=CustomUser.GrammaticalGender.choices,
-        required=False,
-        default=CustomUser.GrammaticalGender.UNSPECIFIED,
-    )
-
-    def validate_email(self, value):
-        normalized_email = value.lower()
-        if CustomUser.objects.filter(email__iexact=normalized_email).exists():
-            raise serializers.ValidationError('Este correo ya esta registrado.')
-        return normalized_email
-
-    def validate_matricula(self, value):
-        if Student.objects.filter(matricula=value).exists():
-            raise serializers.ValidationError('Esta matricula ya esta registrada.')
-        return value
-
-    def validate_password(self, value):
-        password_validation.validate_password(value)
-        return value
-
-    def create(self, validated_data):
-        password = validated_data.pop('password')
-        student_data = {
-            'matricula': validated_data.pop('matricula'),
-            'programa_doctoral': validated_data.pop('programa_doctoral'),
-            'cohorte': validated_data.pop('cohorte'),
-        }
-        with transaction.atomic():
-            user = CustomUser.objects.create_user(
-                password=password,
-                role=CustomUser.Role.STUDENT,
-                **validated_data,
-            )
-            Student.objects.create(
-                user=user,
-                matricula=student_data['matricula'],
-                nombre_completo=f"{user.first_name} {user.last_name}".strip(),
-                programa_doctoral=student_data['programa_doctoral'],
-                cohorte=student_data['cohorte'],
-                fecha_ingreso=timezone.localdate(),
-            )
-        return user
 
 
 class SemesterSerializer(serializers.ModelSerializer):

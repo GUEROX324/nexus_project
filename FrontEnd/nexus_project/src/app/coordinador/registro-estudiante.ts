@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-const COORDINATOR_API = `${environment.apiUrl}/coordinator`;
+const STUDENTS_API = `${environment.apiUrl}/v1/students`;
 
 interface EstudianteRegistrado {
   id: number;
@@ -37,7 +37,7 @@ export class RegistroEstudiante {
     last_name: ['', [Validators.required, Validators.pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required],
-    matricula: ['', [Validators.required, Validators.maxLength(9), Validators.pattern(/^[a-zA-Z0-9-]{1,9}$/)]],
+    matricula: ['', [Validators.required, Validators.maxLength(20), Validators.pattern(/^[a-zA-Z0-9-]{1,20}$/)]],
     programa_doctoral: ['', Validators.required],
     fecha_ingreso: ['', Validators.required],
     cohorte: ['', Validators.required],
@@ -75,8 +75,8 @@ export class RegistroEstudiante {
 
     this.http
       .post<EstudianteRegistrado>(
-        `${COORDINATOR_API}/students/`,
-        this.formulario.getRawValue()
+        `${STUDENTS_API}/`,
+        { ...this.formulario.getRawValue(), matricula: this.formulario.controls.matricula.value.trim().toUpperCase() }
       )
       .pipe(finalize(() => (this.guardando = false)))
       .subscribe({

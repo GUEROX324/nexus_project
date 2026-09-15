@@ -43,15 +43,6 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface RegistrationData extends LoginCredentials {
-  first_name: string;
-  last_name: string;
-  matricula: string;
-  programa_doctoral: string;
-  cohorte: string;
-  grammatical_gender?: GrammaticalGender;
-}
-
 export interface AuthResponse {
   access: string;
   refresh: string;

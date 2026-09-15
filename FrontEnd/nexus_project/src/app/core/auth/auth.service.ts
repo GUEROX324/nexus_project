@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
 import { Observable, catchError, finalize, shareReplay, tap, throwError } from 'rxjs';
-import { AuthenticatedUser, AuthResponse, LoginCredentials, Permission, RegistrationData, RoleAssignment, UserRole } from './auth.models';
+import { AuthenticatedUser, AuthResponse, LoginCredentials, Permission, RoleAssignment, UserRole } from './auth.models';
 import { environment } from '../../../environments/environment';
 
 const AUTH_API = `${environment.apiUrl}/v1/auth`;
@@ -18,15 +18,6 @@ export class AuthService {
 
   login(credentials: LoginCredentials): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${AUTH_API}/login/`, credentials).pipe(
-      tap(response => {
-        this.setSession(response);
-        this.sessionExpired.set(false);
-      }),
-    );
-  }
-
-  register(data: RegistrationData): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/register/`, data).pipe(
       tap(response => {
         this.setSession(response);
         this.sessionExpired.set(false);

@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 
@@ -69,7 +70,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 class Student(models.Model):
 	user = models.OneToOneField(CustomUser, null=True, blank=True, on_delete=models.SET_NULL, related_name='student_profile')
-	matricula = models.CharField(max_length=9, unique=True, db_index=True)
+	matricula = models.CharField(max_length=20, unique=True, db_index=True)
 	nombre_completo = models.CharField(max_length=255)
 	programa_doctoral = models.CharField(max_length=255, default='Doctorado en Ciencias')
 	fecha_ingreso = models.DateField(null=True, blank=True, default=timezone.now)
@@ -77,6 +78,11 @@ class Student(models.Model):
 	estatus_activo = models.BooleanField(default=True, db_index=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(Lower('matricula'), name='unique_student_matricula_ci'),
+		]
 
 	@property
 	def committee_relationships(self):

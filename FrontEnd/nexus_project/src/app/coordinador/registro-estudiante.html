@@ -87,9 +87,9 @@
 
       <label>
         Matrícula
-        <input type="text" formControlName="matricula" maxlength="9">
+        <input type="text" formControlName="matricula" maxlength="20">
         @if (formulario.get('matricula')?.touched && (formulario.get('matricula')?.hasError('maxlength') || formulario.get('matricula')?.hasError('pattern'))) {
-          <small class="mensaje error">La matrícula debe tener como máximo 9 caracteres alfanuméricos.</small>
+          <small class="mensaje error">La matrícula debe contener hasta 20 caracteres alfanuméricos o guiones.</small>
         }
       </label>
 

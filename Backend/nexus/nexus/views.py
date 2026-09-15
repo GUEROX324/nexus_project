@@ -10,7 +10,6 @@ from django.db.models import Q
 from .models import AcademicCommittee, AdminAuditLog, CustomUser, Semester, Student
 from .permissions import (
     CanAssignRoles,
-    CanCreateStudent,
     CanCreateTutoring,
     CanManageCommittee,
     CanManageSemesters,
@@ -23,7 +22,6 @@ from .serializers import (
     CommitteeAssignmentReadSerializer,
     CommitteeAssignmentSerializer,
     AdminAuditLogSerializer,
-    RegistrationSerializer,
     RoleAssignmentSerializer,
     SemesterSerializer,
     StudentCreateSerializer,
@@ -45,20 +43,6 @@ class LoginView(APIView):
         return Response(
             {'access': str(refresh.access_token), 'refresh': str(refresh), 'user': UserSerializer(user).data},
             status=status.HTTP_200_OK,
-        )
-
-
-class RegisterView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = RegistrationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {'access': str(refresh.access_token), 'refresh': str(refresh), 'user': UserSerializer(user).data},
-            status=status.HTTP_201_CREATED,
         )
 
 
@@ -181,20 +165,6 @@ class AdminStudentListView(APIView):
             Q(user__isnull=True) | Q(user__role=CustomUser.Role.STUDENT)
         ).order_by('matricula')
         return Response(StudentRecordSerializer(students, many=True).data)
-
-class StudentCreateView(APIView):
-    permission_classes = [CanCreateStudent]
-
-    def post(self, request):
-        serializer = StudentCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        student = serializer.save()
-
-        return Response(
-            StudentRecordSerializer(student).data,
-            status=status.HTTP_201_CREATED
-        )
-
 
 class CommitteeAssignmentUpdateView(APIView):
     permission_classes = [CanManageCommittee]
