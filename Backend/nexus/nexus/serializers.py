@@ -21,6 +21,7 @@ from .models import (
     Student,
     ThesisProgress,
     TutoringSession,
+    TutoringParticipant,
 )
 from .permissions import permissions_for_user
 
@@ -393,7 +394,23 @@ class TutoringSessionCreateSerializer(serializers.ModelSerializer):
         )
 
 
+class TutoringParticipantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TutoringParticipant
+        fields = ('id', 'session', 'user', 'rol_en_sesion', 'asistencia', 'notas')
+        read_only_fields = ('id', 'session')
+
+    def validate_user(self, user):
+        session = self.context['session']
+        if user.id == session.student.user_id or CommitteeMembership.objects.filter(
+            committee__student=session.student, user=user
+        ).exists():
+            return user
+        raise serializers.ValidationError('El participante no está asociado al seguimiento del estudiante.')
+
+
 class TutoringSessionSerializer(serializers.ModelSerializer):
+    participants = TutoringParticipantSerializer(many=True, read_only=True)
     class Meta:
         model = TutoringSession
         fields = (
@@ -406,6 +423,7 @@ class TutoringSessionSerializer(serializers.ModelSerializer):
             'proxima_reunion_fecha',
             'proxima_reunion_notas',
             'created_by',
+            'participants',
         )
 
 
