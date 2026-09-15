@@ -1,56 +1,224 @@
-# Contrato de API REST v1
+# Estándar de Diseño y Contrato de API REST v1.0
+## Sistema N.E.X.U.S. (Núcleo de Expediente y Seguimiento Universitario Superior)
+**Documento Normativo de Integración y Servicios Web**  
+**Versión:** 1.0 — Canónica de Producción  
+**Clasificación:** Restringido / Especificación Oficial de API  
 
-Estado verificado contra `Backend/nexus/nexus/urls.py`, `views.py` y `serializers.py` en la rama `Development`.
+---
 
-## Convenciones
+## 1. Directrices Generales de Diseño
 
-- Único prefijo operativo: `/api/v1/`; barra final obligatoria.
-- JSON en `snake_case`; carga de evidencia mediante `multipart/form-data`.
-- Autenticación JWT de SimpleJWT: `Authorization: Bearer <access_token>`.
-- Access token: 15 minutos. Refresh token: 7 días, con rotación y blacklist.
-- Las colecciones paginadas usan `{count,next,previous,results}`, 10 elementos por defecto y `page_size` hasta 100.
-- Estados: **IMPLEMENTADO** existe y está conectado; **PARCIAL** cubre parte de la HU; **PLANIFICADO** no tiene endpoint y se documenta sin inventar ruta.
+Todas las interfaces de programación de aplicaciones (API) del sistema N.E.X.U.S. deben apegarse de forma estricta a los siguientes lineamientos arquitectónicos:
 
-## Endpoints reales
+1. **Prefijo Global y Versionado:**  
+   Todos los endpoints deben estar expuestos bajo el espacio de nombres `/api/v1/`.
+2. **Convención de Nombres en URLs:**  
+   Las URLs deben redactarse en `kebab-case`, en plural para colecciones de recursos, y **con barra inclinada final obligatoria (*trailing slash*)**:
+   - Correcto: `/api/v1/tutoring-sessions/`, `/api/v1/academic-output/research-stays/`
+   - Incorrecto: `/api/v1/tutoringSessions`, `/api/v1/academic_output/research_stays`
+3. **Formato de Cargas Útiles (*Payloads*):**  
+   - En el backend (Django REST Framework), las propiedades JSON se transmiten en `snake_case` (ej. `fecha_sesion`, `porcentaje_avance`).
+   - En el frontend (Angular 20), los modelos e interfaces TypeScript mapean de manera transparente estos campos conservando tipado estricto.
 
-| Estado | Sprint / HU | Método y ruta | Alcance real |
-|---|---|---|---|
-| IMPLEMENTADO | S1 HU-01 | `POST /api/v1/auth/login/` | Devuelve `access`, `refresh` y usuario. |
-| IMPLEMENTADO | S1 HU-01 | `POST /api/v1/auth/token/refresh/` | Rota refresh según configuración. |
-| IMPLEMENTADO | S1 HU-01 | `POST /api/v1/auth/logout/` | Requiere refresh y lo añade a blacklist. |
-| IMPLEMENTADO | S1 HU-01/02 | `GET /api/v1/auth/me/` | Usuario, rol, permisos, `student_id` y `grammatical_gender`. |
-| IMPLEMENTADO | S1 HU-02 | `GET /api/v1/auth/users/` | Lista paginada para asignación de roles/comité. |
-| IMPLEMENTADO | S1 HU-02 | `PATCH /api/v1/auth/users/{user_id}/role/` | Asignación auditada; no promueve a `SYSTEM_ADMIN`. |
-| IMPLEMENTADO | S1 HU-02 | `POST /api/v1/admin/users/` | Crea cuenta institucional y auditoría. |
-| IMPLEMENTADO | S1 HU-02/04 | `GET /api/v1/admin/audit/` | Bitácora administrativa paginada. |
-| IMPLEMENTADO | S1 HU-03/06 | `GET /api/v1/students/` | Padrón filtrado por rol y relación. |
-| IMPLEMENTADO | S1 HU-03 | `POST /api/v1/students/` | Crea usuario estudiante y expediente atómicamente. |
-| IMPLEMENTADO | S1 HU-06 | `GET /api/v1/students/{id}/` | Expediente consolidado. |
-| IMPLEMENTADO | S1 HU-06 | `GET /api/v1/students/{id}/overview/` | Mismo contrato consolidado con control relacional explícito. |
-| IMPLEMENTADO | S1 HU-04 | `GET/POST /api/v1/committees/` | Lista o crea comité con `memberships`. |
-| IMPLEMENTADO | S1 HU-04 | `DELETE /api/v1/committee-memberships/{assignment_id}/` | Elimina una membresía. |
-| IMPLEMENTADO | S1 HU-04 | `GET /api/v1/admin/students/` | Padrón auxiliar para gestión de comité. |
-| IMPLEMENTADO | S1 HU-05 | `GET/POST /api/v1/students/{student_id}/semesters/` | Consulta/alta; sólo `PROGRAM_COORDINATOR` administra. |
-| IMPLEMENTADO | S1 HU-05 | `PATCH /api/v1/students/{student_id}/semesters/{semester_id}/` | Modifica y activa un semestre. |
-| IMPLEMENTADO | S2 HU-07/10 | `GET/POST /api/v1/tutoring-sessions/` | Lista/crea tutorías; el router ofrece además retrieve, PUT, PATCH y DELETE. |
-| IMPLEMENTADO | S2 HU-07 | `POST /api/v1/tutoring/` | Alias v1 de creación conservado por compatibilidad. |
-| IMPLEMENTADO | S2 HU-08 | `GET/POST /api/v1/tutoring-sessions/{id}/participants/` | Participantes vinculados al expediente. |
-| IMPLEMENTADO | S2 HU-09 | `GET/POST /api/v1/tutoring-sessions/{id}/observations/` | Observaciones con autor autenticado. |
-| IMPLEMENTADO | S2 HU-11/12 | `GET/POST /api/v1/tutoring-sessions/{id}/agreements/` | Acuerdos de una tutoría y responsable relacionado. |
-| IMPLEMENTADO | S2 HU-14 | `GET /api/v1/agreements/` | Filtros efectivos: `student`, `responsable`, `estado`, `vencido=true`. |
-| IMPLEMENTADO | S2 HU-14 | `GET /api/v1/agreements/{id}/` | Detalle. |
-| IMPLEMENTADO | S2 HU-13 | `PATCH /api/v1/agreements/{id}/status/` | Sólo responsable; `PENDIENTE → EN_PROCESO → CONCLUIDO`. |
-| IMPLEMENTADO | S2 HU-13 | `GET /api/v1/agreements/{id}/audit-log/` | Historial de transiciones. |
-| IMPLEMENTADO | S3 HU-21 | `GET/POST /api/v1/evidence/` | Archivo local, máximo 15 MiB, extensión/firma/MIME verificados. |
-| PARCIAL | S1 HU-06 / S4 HU-24 | `GET /api/v1/academic/overview/` | Padrón activo consolidado; no es dashboard analítico. |
-| PLANIFICADO | S3+ HU-15–20, HU-22–28 | — | Hay modelos para tesis y producción académica, pero no endpoints públicos; URL/DOI, timeline, alertas, dashboard, reportes y exportaciones no están implementados. |
+---
 
-## Autorización vigente
+## 2. Autenticación y Autorización (SimpleJWT & RBAC)
 
-- `PROGRAM_COORDINATOR`: lectura académica global, alta de estudiantes, gestión de semestres y comité.
-- `TUTOR` y `COMMITTEE_MEMBER`: expedientes asignados y tutorías relacionadas.
-- `STUDENT`: expediente propio.
-- `ACADEMIC_ADMIN`: cuentas/roles y lectura global; no gestiona semestres ni comités.
-- `SYSTEM_ADMIN`: cuentas/roles y auditoría; el expediente académico está bloqueado.
+El sistema utiliza autenticación basada en tokens web JSON (JWT) provistos por `djangorestframework-simplejwt` con control de acceso basado en roles.
 
-Los errores de validación siguen el formato nativo de DRF por campo; autenticación, permisos y no encontrado usan `detail` cuando la vista lo define.
+### 2.1. Catálogo Oficial de Roles RBAC
+* `STUDENT`: Estudiante / Doctorando matriculado.
+* `TUTOR`: Tutor / Asesor Principal de tesis.
+* `COMMITTEE_MEMBER`: Miembro del Comité Tutorial. Los cargos académicos `ASESOR`, `COASESOR` y `COMMITTEE_MEMBER` se expresan en las membresías del comité; asesor y coasesor usan cuentas institucionales con rol `TUTOR`.
+* `PROGRAM_COORDINATOR`: Coordinador del Programa de Posgrado.
+* `ACADEMIC_ADMIN`: Administrador Académico y de Control Escolar.
+* `SYSTEM_ADMIN`: Administrador del Sistema / Superusuario.
+
+### 2.2. Encabezado de Solicitud
+Todas las peticiones a rutas protegidas deben incluir el encabezado estándar:
+```http
+Authorization: Bearer <access_token>
+```
+
+### 2.3. Parámetros de Ciclo de Vida del Token
+- **Token de Acceso (`access`):** Vigencia de **15 minutos**.
+- **Token de Refresco (`refresh`):** Vigencia de **7 días**, con rotación automática (`ROTATE_REFRESH_TOKENS = True`) e invalidación del token rotado mediante blacklist (`BLACKLIST_AFTER_ROTATION = True`).
+
+### 2.4. Endpoints de Autenticación
+* `POST /api/v1/auth/login/`  
+  * **Payload Solicitud:**
+    ```json
+    {
+      "email": "coordinador@nexus.edu",
+      "password": "PasswordSeguro123!"
+    }
+    ```
+  * **Respuesta Exitosa (HTTP 200 OK):**
+    ```json
+    {
+      "access": "eyJhbGciOiJIUzI1NiIsIn...",
+      "refresh": "eyJhbGciOiJIUzI1NiIsIn...",
+      "user": {
+        "id": 1,
+        "email": "coordinador@nexus.edu",
+        "first_name": "Coordinador",
+        "last_name": "Académico",
+        "role": "PROGRAM_COORDINATOR",
+        "grammatical_gender": "MASCULINE"
+      }
+    }
+    ```
+* `POST /api/v1/auth/token/refresh/`  
+  * **Payload Solicitud:**
+    ```json
+    {
+      "refresh": "eyJhbGciOiJIUzI1NiIsIn..."
+    }
+    ```
+  * **Respuesta Exitosa (HTTP 200 OK):**
+    ```json
+    {
+      "access": "eyJhbGciOiJIUzI1NiIsIn...",
+      "refresh": "eyJhbGciOiJIUzI1NiIsIn..."
+    }
+    ```
+
+---
+
+## 3. Estructura Estándar de Sobres de Respuesta HTTP
+
+### 3.1. Respuestas Exitosas
+
+#### A. Creación de Recurso (HTTP 201 Created)
+Retorna la representación completa de la entidad creada e incluye el identificador generado:
+```json
+{
+  "id": 14,
+  "matricula": "DOC-2024-001",
+  "nombre_completo": "Ana Laura Morales Vega",
+  "programa_doctoral": "Doctorado en Ciencias",
+  "cohorte": "2024-A",
+  "estatus_activo": true,
+  "created_at": "2026-09-01T14:30:00Z"
+}
+```
+
+#### B. Consulta y Actualización (HTTP 200 OK)
+Retorna la entidad con campos enriquecidos (anidados o agregados para optimizar el consumo del cliente):
+```json
+{
+  "id": 5,
+  "student": 14,
+  "student_matricula": "DOC-2024-001",
+  "student_nombre": "Ana Laura Morales Vega",
+  "descripcion": "Entrega de protocolo de tesis revisado con asesor",
+  "responsable": 2,
+  "responsable_nombre": "Dr. Roberto Gómez",
+  "fecha_limite": "2026-09-15",
+  "estado": "PENDIENTE",
+  "is_vencido": false,
+  "created_at": "2026-09-01T10:00:00Z"
+}
+```
+
+#### C. Eliminación de Recurso (HTTP 200 OK o HTTP 204 No Content)
+```json
+{
+  "detail": "Registro eliminado exitosamente."
+}
+```
+
+---
+
+### 3.2. Respuestas de Error
+
+#### A. Error de Validación de Datos (HTTP 400 Bad Request)
+Los errores de validación de formulario o de serializador deben estructurarse como un diccionario donde cada clave corresponde al nombre del campo infractor y su valor es una lista de cadenas de texto con la causa:
+```json
+{
+  "fecha_limite": [
+    "La fecha límite es un campo obligatorio."
+  ],
+  "responsable": [
+    "Este campo no puede ser nulo."
+  ]
+}
+```
+
+#### B. Error de Autenticación (HTTP 401 Unauthorized)
+```json
+{
+  "detail": "Las credenciales de autenticación no se proveyeron o son inválidas."
+}
+```
+
+#### C. Error de Permisos y Roles RBAC (HTTP 403 Forbidden)
+```json
+{
+  "detail": "No tiene permisos suficientes para ejecutar esta acción. Rol requerido: PROGRAM_COORDINATOR."
+}
+```
+
+#### D. Recurso No Encontrado (HTTP 404 Not Found)
+```json
+{
+  "detail": "El recurso solicitado no existe o no se encuentra disponible."
+}
+```
+
+---
+
+## 4. Estándar de Paginación de Recursos
+
+Las consultas a colecciones de recursos (`GET /api/v1/{recurso}/`) implementan `PageNumberPagination` de DRF con tamaño estándar de página de 10 elementos (configurable mediante parámetro `page_size`):
+
+```json
+{
+  "count": 48,
+  "next": "http://127.0.0.1:8000/api/v1/students/?page=3",
+  "previous": "http://127.0.0.1:8000/api/v1/students/?page=1",
+  "results": [
+    {
+      "id": 21,
+      "matricula": "DOC-2024-021",
+      "nombre_completo": "Carlos Mendoza Ruiz",
+      "cohorte": "2024-A",
+      "estatus_activo": true
+    },
+    {
+      "id": 22,
+      "matricula": "DOC-2024-022",
+      "nombre_completo": "Elena Soto Paredes",
+      "cohorte": "2024-A",
+      "estatus_activo": true
+    }
+  ]
+}
+```
+
+---
+
+## 5. Catálogo Global de Rutas y Endpoints Canónicos
+
+| Módulo | Prefijo URL | Métodos Permitidos | Descripción |
+| :--- | :--- | :--- | :--- |
+| **Identidad** | `/api/v1/auth/` | `POST` | `login/`, `logout/`, `token/refresh/`, `me/` |
+| **Estudiantes** | `/api/v1/students/` | `GET`, `POST`, `PUT`, `DELETE` | Padrón, ficha técnica, semestres y comités |
+| **Tutorías** | `/api/v1/tutoring-sessions/` | `GET`, `POST`, `PUT`, `DELETE` | Sesiones, asistencia y minutas de observación |
+| **Acuerdos** | `/api/v1/agreements/` | `GET`, `POST`, `PATCH`, `DELETE` | Acuerdos, compromisos y cambio de estado con auditoría |
+| **Tesis** | `/api/v1/thesis/` | `GET`, `POST`, `PUT` | Registro de avance porcentual y desglose JSON |
+| **Salida Académica** | `/api/v1/academic-output/` | `GET`, `POST`, `PUT`, `DELETE` | `publications/`, `events/`, `research-stays/`, `other-products/` |
+| **Evidencias** | `/api/v1/evidence/` | `GET`, `POST`, `DELETE` | carga `multipart/form-data` (hasta **15 MiB**), metadatos y DOIs |
+| **Monitoreo** | `/api/v1/monitoring/` | `GET` | `timeline/`, `dashboard/`, `alerts/`, `supervision-alerts/` |
+| **Reportes** | `/api/v1/reporting/` | `GET` | `dossier/`, `dossier/pdf/`, `dossier/excel/` |
+
+
+---
+
+## 6. Decisiones operativas vigentes
+
+- La API pública vigente se expone **exclusivamente bajo `/api/v1/`**. No se documentan ni admiten prefijos alternativos.
+- La creación y modificación de semestres corresponde únicamente a `PROGRAM_COORDINATOR`; los demás actores autorizados pueden consultarlos.
+- `VENCIDO` es un estado **derivado** de `fecha_limite < hoy` mientras el acuerdo no esté `CONCLUIDO`; no es una transición manual ni debe persistirse como efecto de una lectura.
+- `matricula` admite como máximo 20 caracteres y `grammatical_gender` forma parte de la representación de usuario.
+- El comité se representa como un agregado por estudiante con `memberships`; sus cargos son `ASESOR`, `COASESOR` y `COMMITTEE_MEMBER`, con un máximo de un `COASESOR` por comité.
