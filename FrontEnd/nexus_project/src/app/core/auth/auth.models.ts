@@ -9,6 +9,8 @@ export interface AuthenticatedUser {
   roles: UserRole[];
   permissions: Permission[];
   grammatical_gender?: GrammaticalGender;
+  /** ID del expediente Student (solo rol STUDENT). No confundir con id de usuario. */
+  student_id?: number | null;
 }
 
 export type Permission =

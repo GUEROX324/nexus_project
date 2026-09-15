@@ -8,6 +8,7 @@ import { Home } from './home/home';
 import { Login } from './login/login';
 import { RegistroEstudiante } from './coordinador/registro-estudiante';
 import { StudentOverviewComponent } from './expediente/student-overview';
+import { AgreementsListComponent } from './agreements/agreements-list';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -15,6 +16,12 @@ export const routes: Routes = [
   {
     path: 'expediente/:id',
     component: StudentOverviewComponent,
+    canActivate: [authGuard, roleGuard],
+    data: { allowedRoles: ['STUDENT', 'TUTOR', 'COMMITTEE_MEMBER', 'PROGRAM_COORDINATOR', 'ACADEMIC_ADMIN'] },
+  },
+  {
+    path: 'acuerdos',
+    component: AgreementsListComponent,
     canActivate: [authGuard, roleGuard],
     data: { allowedRoles: ['STUDENT', 'TUTOR', 'COMMITTEE_MEMBER', 'PROGRAM_COORDINATOR', 'ACADEMIC_ADMIN'] },
   },

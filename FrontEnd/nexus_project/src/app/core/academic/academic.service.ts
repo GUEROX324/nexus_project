@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PaginatedResponse } from '../../shared/pagination';
-import { StudentRecord, TutoringSession, TutoringSessionData, Semester, CreateSemesterData, StudentOverview, Agreement, Evidence, EvidenceUploadData } from './academic.models';
+import { StudentRecord, TutoringSession, TutoringSessionData, Semester, CreateSemesterData, StudentOverview, Agreement, AgreementFilters, AgreementAuditEntry, Evidence, EvidenceUploadData } from './academic.models';
 
 const API = environment.apiUrl;
 
@@ -23,9 +23,17 @@ export class AcademicService {
     return this.http.post<TutoringSession>(`${API}/tutoring-sessions/`, data);
   }
 
-  getAgreements(filters: { page?: number; student?: number; estado?: string; vencido?: boolean } = {}): Observable<PaginatedResponse<Agreement>> {
-    const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
+  getAgreements(filters: AgreementFilters = {}): Observable<PaginatedResponse<Agreement>> {
+    const query = new URLSearchParams(
+      Object.entries(filters)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .map(([key, value]) => [key, String(value)]),
+    );
     return this.http.get<PaginatedResponse<Agreement>>(`${API}/agreements/?${query}`);
+  }
+
+  getAgreementAuditLog(agreementId: number): Observable<AgreementAuditEntry[]> {
+    return this.http.get<AgreementAuditEntry[]>(`${API}/agreements/${agreementId}/audit-log/`);
   }
 
   getGlobalOverview(page = 1): Observable<PaginatedResponse<StudentRecord>> {
