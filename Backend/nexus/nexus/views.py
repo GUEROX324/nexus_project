@@ -358,7 +358,7 @@ class TutoringSessionViewSet(viewsets.ModelViewSet):
         session = self.get_object()
         if request.method == 'GET':
             return Response(AgreementSerializer(session.agreements.select_related('responsable'), many=True).data)
-        serializer = AgreementSerializer(data=request.data)
+        serializer = AgreementSerializer(data=request.data, context={'session': session})
         serializer.is_valid(raise_exception=True)
         agreement = serializer.save(session=session, student=session.student, created_by=request.user)
         return Response(AgreementSerializer(agreement).data, status=status.HTTP_201_CREATED)
