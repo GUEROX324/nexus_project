@@ -419,6 +419,18 @@ class AgreementSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('La descripción es obligatoria.')
         return value.strip()
 
+    def validate(self, attrs):
+        session = attrs.get('session', self.instance.session if self.instance else None) or self.context.get('session')
+        responsable = attrs.get('responsable', self.instance.responsable if self.instance else None)
+        fecha_limite = attrs.get('fecha_limite', self.instance.fecha_limite if self.instance else None)
+        if session and not (responsable.id == session.student.user_id or CommitteeMembership.objects.filter(
+            committee__student=session.student, user=responsable
+        ).exists()):
+            raise serializers.ValidationError({'responsable': 'El responsable no está asociado al seguimiento del estudiante.'})
+        if fecha_limite and session and fecha_limite < session.fecha_sesion:
+            raise serializers.ValidationError({'fecha_limite': 'La fecha límite no puede ser anterior a la tutoría.'})
+        return attrs
+
 
 class TutoringObservationSerializer(serializers.ModelSerializer):
     autor_nombre = serializers.SerializerMethodField()
