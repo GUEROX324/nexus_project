@@ -8,9 +8,9 @@ export interface AuthenticatedUser {
   role: UserRole;
   roles: UserRole[];
   permissions: Permission[];
-  grammatical_gender?: GrammaticalGender;
   /** ID del expediente Student (solo rol STUDENT). No confundir con id de usuario. */
   student_id?: number | null;
+  grammatical_gender?: GrammaticalGender;
 }
 
 export type Permission =
@@ -28,7 +28,6 @@ export type UserRole =
   | 'TUTOR'
   | 'COMMITTEE_MEMBER'
   | 'PROGRAM_COORDINATOR'
-  | 'ACADEMIC_ADMIN'
   | 'SYSTEM_ADMIN';
 
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -36,7 +35,6 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   TUTOR: 'Asesor / Tutor',
   COMMITTEE_MEMBER: 'Miembro del comité',
   PROGRAM_COORDINATOR: 'Coordinador del programa',
-  ACADEMIC_ADMIN: 'Administrador académico',
   SYSTEM_ADMIN: 'Administrador del sistema',
 };
 

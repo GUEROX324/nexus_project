@@ -16,7 +16,7 @@ const FALLBACK_CREATE_ERROR = 'No fue posible crear la cuenta. Verifica los dato
 })
 export class InstitutionalUsers {
   private readonly admin = inject(AdminService);
-  protected readonly roles: InstitutionalRole[] = ['TUTOR', 'COMMITTEE_MEMBER', 'PROGRAM_COORDINATOR', 'ACADEMIC_ADMIN'];
+  protected readonly roles: InstitutionalRole[] = ['TUTOR', 'COMMITTEE_MEMBER', 'PROGRAM_COORDINATOR'];
   protected form = { first_name: '', last_name: '', email: '', password: '', role: 'TUTOR' as InstitutionalRole };
   protected message = '';
   protected error = '';

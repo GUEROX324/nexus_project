@@ -31,7 +31,6 @@ El sistema utiliza autenticación basada en tokens web JSON (JWT) provistos por 
 * `TUTOR`: Tutor / Asesor Principal de tesis.
 * `COMMITTEE_MEMBER`: Miembro del Comité Tutorial. Los cargos académicos `ASESOR`, `COASESOR` y `COMMITTEE_MEMBER` se expresan en las membresías del comité; asesor y coasesor usan cuentas institucionales con rol `TUTOR`.
 * `PROGRAM_COORDINATOR`: Coordinador del Programa de Posgrado.
-* `ACADEMIC_ADMIN`: Administrador Académico y de Control Escolar.
 * `SYSTEM_ADMIN`: Administrador del Sistema / Superusuario.
 
 ### 2.2. Encabezado de Solicitud

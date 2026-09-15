@@ -22,6 +22,8 @@
       <div class="actions-row">
         @if (user.role === 'STUDENT' && user.student_id) {
           <a [routerLink]="['/expediente', user.student_id]" class="btn-action">Mi expediente académico</a>
+        } @else if (user.role === 'STUDENT') {
+          <p class="record-unavailable" role="status">Tu cuenta aún no tiene un expediente académico vinculado.</p>
         }
 
         @if (user.role === 'STUDENT' || user.role === 'TUTOR' || user.role === 'COMMITTEE_MEMBER' || auth.hasPermission('academic.read.global')) {

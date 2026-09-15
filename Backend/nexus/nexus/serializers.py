@@ -144,7 +144,6 @@ class InstitutionalUserCreateSerializer(serializers.Serializer):
         (CustomUser.Role.TUTOR, 'Tutor'),
         (CustomUser.Role.COMMITTEE_MEMBER, 'Miembro del comité'),
         (CustomUser.Role.PROGRAM_COORDINATOR, 'Coordinador del programa'),
-        (CustomUser.Role.ACADEMIC_ADMIN, 'Administrador académico'),
     ])
 
     def validate_email(self, value):

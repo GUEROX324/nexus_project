@@ -10,7 +10,6 @@ const AVAILABLE_ROLES: UserRole[] = [
   'TUTOR',
   'COMMITTEE_MEMBER',
   'PROGRAM_COORDINATOR',
-  'ACADEMIC_ADMIN',
 ];
 
 @Component({

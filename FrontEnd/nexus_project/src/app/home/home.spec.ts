@@ -63,6 +63,41 @@ describe('Home Component', () => {
     expect(compiled.textContent).toContain('Coordinadora del programa');
   });
 
+  it('links a student to the Student profile id instead of the user id', () => {
+    userSignal.set({
+      id: 15,
+      student_id: 4,
+      email: 'diego@test.com',
+      first_name: 'Diego',
+      last_name: 'Fuentes',
+      role: 'STUDENT',
+      roles: ['STUDENT'],
+      permissions: ['records.read.own'],
+    });
+
+    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector('a[href="/expediente/4"]') as HTMLAnchorElement | null;
+    expect(link).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('a[href="/expediente/15"]')).toBeNull();
+  });
+
+  it('explains when a student account has no linked academic record', () => {
+    userSignal.set({
+      id: 15,
+      student_id: null,
+      email: 'diego@test.com',
+      first_name: 'Diego',
+      last_name: 'Fuentes',
+      role: 'STUDENT',
+      roles: ['STUDENT'],
+      permissions: ['records.read.own'],
+    });
+
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('aún no tiene un expediente académico vinculado');
+    expect(fixture.nativeElement.querySelector('a[href^="/expediente/"]')).toBeNull();
+  });
+
   it('falls back to neutral greeting and role when unspecified', () => {
     userSignal.set({
       id: 2,
