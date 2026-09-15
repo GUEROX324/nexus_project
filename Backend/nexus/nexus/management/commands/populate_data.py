@@ -452,7 +452,7 @@ def populate():
                 defaults={
                     "semester": active_sem,
                     "tipo": Evidence.EvidenceType.DOI_LINK,
-                    "actividad_tipo": "EVENTO",
+                    "actividad_tipo": Evidence.ActivityType.OTHER,
                     "descripcion": "Constancia con firma electrónica institucional y folio de registro.",
                     "enlace_url": "https://cicop2026.org/certificates/val-48892",
                     "fecha_carga": today - datetime.timedelta(days=7),
