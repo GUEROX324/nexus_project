@@ -61,5 +61,6 @@ urlpatterns = [
     path('api/v1/students/<int:student_id>/overview/', StudentRecordView.as_view(), name='v1-student-overview'),
     path('api/v1/students/<int:student_id>/semesters/', StudentSemesterListCreateView.as_view(), name='v1-student-semesters'),
     path('api/v1/students/<int:student_id>/semesters/<int:semester_id>/', StudentSemesterDetailView.as_view(), name='v1-student-semester-detail'),
+    path('api/v1/tutoring/', TutoringSessionViewSet.as_view({'post': 'create'}), name='legacy-tutoring-create'),
     path('api/v1/academic/overview/', GlobalAcademicOverviewView.as_view(), name='academic-overview'),
 ]
