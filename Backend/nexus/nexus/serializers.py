@@ -373,6 +373,7 @@ class TutoringSessionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TutoringSession
         fields = (
+            'id',
             'student',
             'semester',
             'fecha_sesion',
