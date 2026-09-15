@@ -33,13 +33,14 @@ from .views import (
     StudentSemesterDetailView,
     StudentSemesterListCreateView,
     StudentViewSet,
-    TutoringSessionCreateView,
+    TutoringSessionViewSet,
     UserRoleListView,
     UserRoleUpdateView,
 )
 
 router = DefaultRouter()
 router.register(r'students', StudentViewSet, basename='students')
+router.register(r'tutoring-sessions', TutoringSessionViewSet, basename='tutoring-sessions')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -58,6 +59,5 @@ urlpatterns = [
     path('api/v1/students/<int:student_id>/overview/', StudentRecordView.as_view(), name='v1-student-overview'),
     path('api/v1/students/<int:student_id>/semesters/', StudentSemesterListCreateView.as_view(), name='v1-student-semesters'),
     path('api/v1/students/<int:student_id>/semesters/<int:semester_id>/', StudentSemesterDetailView.as_view(), name='v1-student-semester-detail'),
-    path('api/v1/tutoring/', TutoringSessionCreateView.as_view(), name='tutoring-create'),
     path('api/v1/academic/overview/', GlobalAcademicOverviewView.as_view(), name='academic-overview'),
 ]
