@@ -402,6 +402,24 @@ class TutoringSessionCreateSerializer(serializers.ModelSerializer):
         )
 
 
+class AgreementSerializer(serializers.ModelSerializer):
+    responsable_nombre = serializers.SerializerMethodField()
+    is_vencido = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Agreement
+        fields = ('id', 'session', 'student', 'descripcion', 'responsable', 'responsable_nombre', 'fecha_limite', 'estado', 'fecha_conclusion', 'is_vencido', 'created_by', 'created_at')
+        read_only_fields = ('id', 'student', 'estado', 'fecha_conclusion', 'created_by', 'created_at')
+
+    def get_responsable_nombre(self, agreement):
+        return f'{agreement.responsable.first_name} {agreement.responsable.last_name}'.strip() or agreement.responsable.email
+
+    def validate_descripcion(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('La descripción es obligatoria.')
+        return value.strip()
+
+
 class TutoringObservationSerializer(serializers.ModelSerializer):
     autor_nombre = serializers.SerializerMethodField()
 
