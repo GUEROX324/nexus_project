@@ -31,7 +31,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 		TUTOR = 'TUTOR', 'Tutor'
 		COMMITTEE_MEMBER = 'COMMITTEE_MEMBER', 'Miembro del comité'
 		PROGRAM_COORDINATOR = 'PROGRAM_COORDINATOR', 'Coordinador del programa'
-		ACADEMIC_ADMIN = 'ACADEMIC_ADMIN', 'Administrador académico'
 		SYSTEM_ADMIN = 'SYSTEM_ADMIN', 'Administrador del sistema'
 
 	class GrammaticalGender(models.TextChoices):

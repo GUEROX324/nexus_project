@@ -29,7 +29,7 @@
 - **CA-14.3:** Regla RBAC "rol + relación con el estudiante":
   - Estudiante: solo consulta acuerdos de su propio expediente.
   - Asesor / Coasesor / Miembro de comité: solo consulta acuerdos de sus estudiantes asignados.
-  - Coordinador / Administrador Académico: consulta global de todos los acuerdos.
+  - Coordinador del programa: consulta global de todos los acuerdos.
   - Administrador del Sistema (`SYSTEM_ADMIN`): sin acceso a acuerdos académicos (`403 Forbidden`).
 - **CA-14.4:** Cada acuerdo debe incluir un endpoint o subrecurso de solo lectura para consultar su bitácora histórica de auditoría (`audit-log`).
 

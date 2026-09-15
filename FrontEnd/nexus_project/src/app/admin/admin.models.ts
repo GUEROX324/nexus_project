@@ -2,7 +2,7 @@ import { UserRole } from '../core/auth/auth.models';
 import { StudentRecord } from '../core/academic/academic.models';
 import { GrammaticalGender } from '../shared/presentation/grammatical-copy';
 
-export type InstitutionalRole = Exclude<UserRole, 'STUDENT' | 'SYSTEM_ADMIN'>;
+export type InstitutionalRole = 'TUTOR' | 'COMMITTEE_MEMBER' | 'PROGRAM_COORDINATOR';
 
 export interface InstitutionalUserCreate {
   first_name: string;

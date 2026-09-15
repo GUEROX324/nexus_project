@@ -12,9 +12,6 @@ describe('role-labels presentation helper', () => {
     expect(getRoleLabelByGender('PROGRAM_COORDINATOR', 'NEUTRAL')).toBe(
       'Coordinación del programa',
     );
-    expect(getRoleLabelByGender('ACADEMIC_ADMIN', 'UNSPECIFIED')).toBe(
-      'Administración académica',
-    );
   });
 
   it('defaults to masculine label when no gender is provided', () => {

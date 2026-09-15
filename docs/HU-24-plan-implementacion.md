@@ -12,7 +12,7 @@
 ---
 
 ## 1. Definición y Objetivo
-**Como** coordinador del programa doctoral o administrador académico,  
+**Como** coordinador del programa doctoral,
 **quiero** disponer de un panel de control ejecutivo consolidado con métricas clave en tiempo real, alertas de rezago y gráficos de dispersión de avance,  
 **para** monitorear la salud global de la cohorte doctoral, detectar oportunamente estudiantes en riesgo y sustentar la toma de decisiones del comité académico.
 
@@ -30,7 +30,7 @@
   - Histograma o dispersión de avances de tesis (rangos: 0-25%, 26-50%, 51-75%, 76-100%).
 - **CA-24.3:** Listado interactivo de alertas críticas:
   - Tabla rápida con estudiantes en situación de rezago (acuerdos vencidos o falta de tutorías) con enlace directo a sus respectivos expedientes.
-- **CA-24.4:** Autorización estricta: Acceso exclusivo para usuarios con permiso `academic.read.global` (`PROGRAM_COORDINATOR` y `ACADEMIC_ADMIN`). `STUDENT`, `TUTOR` y `SYSTEM_ADMIN` reciben `403 Forbidden`.
+- **CA-24.4:** Autorización estricta: Acceso exclusivo para usuarios con permiso `academic.read.global` (`PROGRAM_COORDINATOR`). `STUDENT`, `TUTOR` y `SYSTEM_ADMIN` reciben `403 Forbidden`.
 
 ---
 

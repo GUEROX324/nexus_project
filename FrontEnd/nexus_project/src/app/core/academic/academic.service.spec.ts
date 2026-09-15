@@ -95,6 +95,69 @@ describe('AcademicService - Semesters (HU-05)', () => {
     createReq.flush({ id: 2, session: 12, autor: 2, autor_nombre: 'Dr. Roberto', ...payload, created_at: '2026-09-15T12:00:00Z' });
   });
 
+  it('lista tutorías paginadas (HU-11)', () => {
+    service.getTutoringSessions(1).subscribe((res) => {
+      expect(res.results.length).toBe(1);
+      expect(res.results[0].id).toBe(5);
+    });
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/tutoring-sessions/?page=1');
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{ id: 5, student: 10, semester: 2, fecha_sesion: '2026-09-05', modalidad: 'PRESENCIAL', resumen: 'Avance', created_by: 20 }],
+    });
+  });
+
+  it('consulta y crea acuerdos de una sesión (HU-11)', () => {
+    service.getSessionAgreements(5).subscribe((list) => {
+      expect(list.length).toBe(0);
+    });
+    const getReq = httpMock.expectOne('http://localhost:8000/api/v1/tutoring-sessions/5/agreements/');
+    expect(getReq.request.method).toBe('GET');
+    getReq.flush([]);
+
+    const payload = {
+      descripcion: 'Entregar borrador del capítulo 1',
+      responsable: 20,
+      fecha_limite: '2026-09-30',
+    };
+    service.createSessionAgreement(5, payload).subscribe((agr) => {
+      expect(agr.id).toBe(101);
+      expect(agr.descripcion).toBe(payload.descripcion);
+    });
+    const postReq = httpMock.expectOne('http://localhost:8000/api/v1/tutoring-sessions/5/agreements/');
+    expect(postReq.request.method).toBe('POST');
+    expect(postReq.request.body).toEqual(payload);
+    postReq.flush({
+      id: 101,
+      descripcion: payload.descripcion,
+      fecha_limite: payload.fecha_limite,
+      estado: 'PENDIENTE',
+      responsable_nombre: 'Asesor',
+      is_vencido: false,
+    });
+  });
+
+  it('actualiza el estado de un acuerdo (HU-13)', () => {
+    service.updateAgreementStatus(101, 'EN_PROCESO', 'Inicio de avance').subscribe((agr) => {
+      expect(agr.estado).toBe('EN_PROCESO');
+    });
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/agreements/101/status/');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ estado: 'EN_PROCESO', comentario: 'Inicio de avance' });
+    req.flush({
+      id: 101,
+      descripcion: 'Entregar borrador',
+      fecha_limite: '2026-09-30',
+      estado: 'EN_PROCESO',
+      responsable: 20,
+      responsable_nombre: 'Asesor',
+      is_vencido: false,
+    });
+  });
+
   it('debe registrar un nuevo semestre (1 al 6)', () => {
     const newSem: CreateSemesterData = {
       numero: 2,

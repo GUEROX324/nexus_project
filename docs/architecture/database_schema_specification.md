@@ -67,7 +67,7 @@ El esquema comprende **23 tablas relacionales** de la aplicación Django única 
   | `email` | `EmailField(255)` | No / No | **Único (`unique=True`)** | Identificador principal de inicio de sesión (`USERNAME_FIELD`). |
   | `first_name` | `CharField(150)` | No / No | — | Nombres del usuario. |
   | `last_name` | `CharField(150)` | No / No | — | Apellidos del usuario. |
-  | `role` | `CharField(30)` | No / No | `STUDENT` | Rol RBAC: `'STUDENT'`, `'TUTOR'`, `'COMMITTEE_MEMBER'`, `'PROGRAM_COORDINATOR'`, `'ACADEMIC_ADMIN'`, `'SYSTEM_ADMIN'`. |
+  | `role` | `CharField(30)` | No / No | `STUDENT` | Rol RBAC: `'STUDENT'`, `'TUTOR'`, `'COMMITTEE_MEMBER'`, `'PROGRAM_COORDINATOR'`, `'SYSTEM_ADMIN'`. |
   | `is_active` | `BooleanField` | No / No | `True` | Estatus operativo de la cuenta. |
   | `is_staff` | `BooleanField` | No / No | `False` | Acceso habilitado a la interfaz administrativa. |
   | `created_at` | `DateTimeField` | No / No | `auto_now_add=True` | Marca temporal de creación. |

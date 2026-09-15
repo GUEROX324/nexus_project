@@ -34,7 +34,6 @@ Enviar `Authorization: Bearer <access_token>` en recursos protegidos.
 | `STUDENT` | Expediente propio. |
 | `TUTOR`, `COMMITTEE_MEMBER` | Expedientes/tutorías donde existe membership. |
 | `PROGRAM_COORDINATOR` | Lectura global, alta de estudiantes, gestión de comité y semestres. |
-| `ACADEMIC_ADMIN` | Gestión de cuentas/roles y lectura global; no gestiona semestres ni comité. |
 | `SYSTEM_ADMIN` | Gestión de cuentas/roles y auditoría; sin lectura académica. |
 
 ## API

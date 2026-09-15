@@ -22,7 +22,7 @@
 | Rango / HU | Rama observable | Estado en `Development` al corte | Capas observadas |
 | :--- | :--- | :--- | :--- |
 | HU-01 | `HU-01-autenticarse` | Integrada | Modelo de usuario, serializers, login/logout/me, refresh JWT, frontend auth e interceptor |
-| HU-02 | `HU-02-controlar-acceso-por-rol` | Integrada | RBAC, permisos, administración de roles, auditoría y UI administrativa |
+| HU-02 | `HU-02-controlar-acceso-por-rol` | Integrada | RBAC de cinco roles; cuentas/roles sólo `SYSTEM_ADMIN`, academia global `PROGRAM_COORDINATOR`, sesión revalidada con `/auth/me` |
 | HU-03 | `HU-03-registrar-estudiante` | Integrada | Modelo/serializer/viewset de estudiantes y formulario frontend |
 | HU-04 | `HU-04-asignar-comite-academico` | Integrada, con defectos de manejo de errores/seed indicados abajo | Comité agrupado, memberships, endpoints y UI administrativa |
 | HU-05 | `HU-05-gestionar-semestres` | Integrada | Modelo, validaciones, endpoints por estudiante y consumo frontend |

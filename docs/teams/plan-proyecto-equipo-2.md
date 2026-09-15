@@ -23,7 +23,9 @@ A continuación se detallan de forma íntegra las historias de usuario bajo resp
 - **Criterios de Aceptación:**
   - **CA-02.1:** Un estudiante sólo podrá consultar expedientes para los que tenga autorización.
   - **CA-02.2:** Un asesor podrá registrar tutorías únicamente de estudiantes asociados a él.
-  - **CA-02.3:** Un coordinador podrá consultar información global sin adquirir automáticamente permisos de edición académica.
+  - **CA-02.3:** `PROGRAM_COORDINATOR` podrá consultar información académica global y administrar la operación académica; la administración de cuentas y roles queda exclusivamente en `SYSTEM_ADMIN`.
+  - **CA-02.4:** La sesión se revalida con `GET /api/v1/auth/me/`; almacenamiento con versión o rol inválido se descarta antes de evaluar guards.
+  - **CA-02.5:** Los roles institucionales válidos son `STUDENT`, `TUTOR`, `COMMITTEE_MEMBER`, `PROGRAM_COORDINATOR` y `SYSTEM_ADMIN`.
 
 ### HU-04 — Asignar comité académico
 - **Definición:** Como coordinador, quiero asociar asesor, coasesor y miembros del comité a un estudiante, para determinar quién participa en su seguimiento.

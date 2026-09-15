@@ -14,7 +14,6 @@ ROLE_PERMISSIONS = {
         'records.read.assigned',
         'committee.manage',
     },
-    CustomUser.Role.ACADEMIC_ADMIN: {'users.role.assign', 'academic.read.global'},
     CustomUser.Role.SYSTEM_ADMIN: {
         'users.role.assign',
     },

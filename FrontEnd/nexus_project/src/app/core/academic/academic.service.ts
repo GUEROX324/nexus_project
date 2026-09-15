@@ -11,6 +11,7 @@ import {
   CreateSemesterData,
   StudentOverview,
   Agreement,
+  CreateSessionAgreementData,
   Evidence,
   EvidenceUploadData,
   TutoringObservation,
@@ -48,6 +49,18 @@ export class AcademicService {
     data: CreateTutoringObservationData,
   ): Observable<TutoringObservation> {
     return this.http.post<TutoringObservation>(`${API}/tutoring-sessions/${sessionId}/observations/`, data);
+  }
+
+  getSessionAgreements(sessionId: number): Observable<Agreement[]> {
+    return this.http.get<Agreement[]>(`${API}/tutoring-sessions/${sessionId}/agreements/`);
+  }
+
+  createSessionAgreement(sessionId: number, data: CreateSessionAgreementData): Observable<Agreement> {
+    return this.http.post<Agreement>(`${API}/tutoring-sessions/${sessionId}/agreements/`, data);
+  }
+
+  updateAgreementStatus(agreementId: number, estado: 'EN_PROCESO' | 'CONCLUIDO', comentario = ''): Observable<Agreement> {
+    return this.http.patch<Agreement>(`${API}/agreements/${agreementId}/status/`, { estado, comentario });
   }
 
   getAgreements(filters: { page?: number; student?: number; estado?: string; vencido?: boolean } = {}): Observable<PaginatedResponse<Agreement>> {
