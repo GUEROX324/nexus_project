@@ -237,6 +237,11 @@
           } @else {
             <p class="empty-state">Sin sesiones registradas</p>
           }
+
+          <app-tutoring-observations
+            [studentId]="studentId"
+            [preferredSessionId]="overview.last_tutoring?.id ?? null"
+          />
         </article>
 
         <article class="card evidence-card">

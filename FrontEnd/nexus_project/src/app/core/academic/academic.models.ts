@@ -24,6 +24,21 @@ export interface TutoringSession extends TutoringSessionData {
   created_by: number;
 }
 
+export interface TutoringObservation {
+  id: number;
+  session: number;
+  autor: number;
+  autor_nombre: string;
+  tema_revisado: string;
+  observaciones_detalladas: string;
+  created_at: string;
+}
+
+export interface CreateTutoringObservationData {
+  tema_revisado: string;
+  observaciones_detalladas: string;
+}
+
 export interface Semester {
   id: number;
   student: number;

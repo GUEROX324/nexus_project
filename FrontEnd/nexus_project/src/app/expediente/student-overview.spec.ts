@@ -132,6 +132,34 @@ const mockEmptyOverview: StudentOverview = {
   recent_academic_activity: [],
 };
 
+function flushHu09SideRequests(http: HttpTestingController, preferredSessionId: number | null = 5): void {
+  const sessionsReq = http.expectOne('http://localhost:8000/api/v1/tutoring-sessions/?page=1');
+  expect(sessionsReq.request.method).toBe('GET');
+  if (preferredSessionId == null) {
+    sessionsReq.flush({ count: 0, next: null, previous: null, results: [] });
+    return;
+  }
+  sessionsReq.flush({
+    count: 1,
+    next: null,
+    previous: null,
+    results: [
+      {
+        id: preferredSessionId,
+        student: 10,
+        semester: 2,
+        fecha_sesion: '2026-09-05',
+        modalidad: 'PRESENCIAL',
+        resumen: 'Revisión del capítulo 2 de la tesis.',
+        created_by: 20,
+      },
+    ],
+  });
+  const obsReq = http.expectOne(`http://localhost:8000/api/v1/tutoring-sessions/${preferredSessionId}/observations/`);
+  expect(obsReq.request.method).toBe('GET');
+  obsReq.flush([]);
+}
+
 describe('StudentOverviewComponent', () => {
   let component: StudentOverviewComponent;
   let fixture: ComponentFixture<StudentOverviewComponent>;
@@ -171,6 +199,8 @@ describe('StudentOverviewComponent', () => {
     fixture.detectChanges();
     const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockOverview);
+    fixture.detectChanges();
+    flushHu09SideRequests(http, 5);
   });
 
   it('carga y muestra los datos del estudiante (nombre, matrícula) y las 6 categorías', () => {
@@ -178,6 +208,8 @@ describe('StudentOverviewComponent', () => {
     const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     expect(req.request.method).toBe('GET');
     req.flush(mockOverview);
+    fixture.detectChanges();
+    flushHu09SideRequests(http, 5);
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent;
@@ -235,6 +267,8 @@ describe('StudentOverviewComponent', () => {
     const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockEmptyOverview);
     fixture.detectChanges();
+    flushHu09SideRequests(http, null);
+    fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Sin semestre activo');
@@ -271,6 +305,8 @@ describe('StudentOverviewComponent', () => {
     fixture.detectChanges();
     const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockOverview);
+    fixture.detectChanges();
+    flushHu09SideRequests(http, 5);
     fixture.detectChanges();
 
     // Toggle form
@@ -312,6 +348,10 @@ describe('StudentOverviewComponent', () => {
     const reloadReq = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     reloadReq.flush(mockOverview);
     fixture.detectChanges();
+    // La hija HU-09 no refetch si studentId/session no cambian
+    http.match('http://localhost:8000/api/v1/tutoring-sessions/?page=1').forEach((r) => {
+      r.flush({ count: 0, next: null, previous: null, results: [] });
+    });
 
     expect(comp['mostrarFormSemestre']).toBeFalse();
   });
@@ -323,6 +363,8 @@ describe('StudentOverviewComponent', () => {
     });
     fixture.detectChanges();
     http.expectOne('http://localhost:8000/api/v1/students/10/overview/').flush(mockOverview);
+    fixture.detectChanges();
+    flushHu09SideRequests(http, 5);
     fixture.componentInstance['mostrarFormSemestre'] = true;
 
     fixture.detectChanges();

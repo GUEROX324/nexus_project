@@ -63,6 +63,38 @@ describe('AcademicService - Semesters (HU-05)', () => {
     req.flush({ count: 0, next: null, previous: null, results: [] });
   });
 
+  it('lista y crea observaciones de tutoría (HU-09)', () => {
+    service.getSessionObservations(12).subscribe((items) => {
+      expect(items.length).toBe(1);
+      expect(items[0].autor_nombre).toBe('Dr. Roberto');
+    });
+    const listReq = httpMock.expectOne('http://localhost:8000/api/v1/tutoring-sessions/12/observations/');
+    expect(listReq.request.method).toBe('GET');
+    listReq.flush([
+      {
+        id: 1,
+        session: 12,
+        autor: 2,
+        autor_nombre: 'Dr. Roberto',
+        tema_revisado: 'Metodología',
+        observaciones_detalladas: 'Ampliar el marco teórico con fuentes recientes.',
+        created_at: '2026-09-14T11:30:00Z',
+      },
+    ]);
+
+    const payload = {
+      tema_revisado: 'Estado del arte',
+      observaciones_detalladas: 'Incluir literatura 2024-2026.',
+    };
+    service.createSessionObservation(12, payload).subscribe((created) => {
+      expect(created.id).toBe(2);
+    });
+    const createReq = httpMock.expectOne('http://localhost:8000/api/v1/tutoring-sessions/12/observations/');
+    expect(createReq.request.method).toBe('POST');
+    expect(createReq.request.body).toEqual(payload);
+    createReq.flush({ id: 2, session: 12, autor: 2, autor_nombre: 'Dr. Roberto', ...payload, created_at: '2026-09-15T12:00:00Z' });
+  });
+
   it('debe registrar un nuevo semestre (1 al 6)', () => {
     const newSem: CreateSemesterData = {
       numero: 2,
