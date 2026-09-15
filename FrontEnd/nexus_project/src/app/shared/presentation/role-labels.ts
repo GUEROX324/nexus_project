@@ -26,11 +26,6 @@ export const GENDERED_ROLE_LABELS: Record<UserRole, GrammaticalVariants> = {
     feminine: 'Coordinadora del programa',
     neutral: 'Coordinación del programa',
   },
-  ACADEMIC_ADMIN: {
-    masculine: 'Administrador académico',
-    feminine: 'Administradora académica',
-    neutral: 'Administración académica',
-  },
   SYSTEM_ADMIN: {
     masculine: 'Administrador del sistema',
     feminine: 'Administradora del sistema',

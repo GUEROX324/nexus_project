@@ -248,7 +248,7 @@ class AuthenticationApiTests(APITestCase):
             password=self.password,
             first_name='Admin',
             last_name='Nexus',
-            role=self.user_model.Role.ACADEMIC_ADMIN,
+            role=self.user_model.Role.SYSTEM_ADMIN,
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(admin)}')
         listed = self.client.get('/api/v1/auth/users/')
@@ -273,7 +273,7 @@ class AuthenticationApiTests(APITestCase):
             password=self.password,
             first_name='Admin',
             last_name='Nexus',
-            role=self.user_model.Role.ACADEMIC_ADMIN,
+            role=self.user_model.Role.SYSTEM_ADMIN,
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(admin)}')
 
@@ -394,7 +394,6 @@ class AuthenticationApiTests(APITestCase):
             self.user_model.Role.PROGRAM_COORDINATOR,
             self.user_model.Role.TUTOR,
             self.user_model.Role.SYSTEM_ADMIN,
-            self.user_model.Role.ACADEMIC_ADMIN,
         ]
         for role in roles:
             u = self.user_model.objects.create_user(
@@ -549,7 +548,7 @@ class StudentCreationHu03Tests(APITestCase):
 
     def test_only_program_coordinator_can_create(self):
         self.assertEqual(self.post().status_code, 401)
-        for role in (self.user_model.Role.STUDENT, self.user_model.Role.TUTOR, self.user_model.Role.ACADEMIC_ADMIN, self.user_model.Role.SYSTEM_ADMIN):
+        for role in (self.user_model.Role.STUDENT, self.user_model.Role.TUTOR, self.user_model.Role.SYSTEM_ADMIN):
             with self.subTest(role=role):
                 user = self.user_model.objects.create_user(email=f'{role.lower()}@example.com', password='Correcta-12345', role=role)
                 self.assertEqual(self.post(user=user).status_code, 403)
@@ -724,7 +723,7 @@ class SuperAdminApiTests(APITestCase):
             student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
         )
         payload = {'numero': 2, 'fecha_inicio': '2025-07-01', 'fecha_fin': '2025-12-15'}
-        for role in (self.user_model.Role.ACADEMIC_ADMIN, self.user_model.Role.SYSTEM_ADMIN):
+        for role in (self.user_model.Role.SYSTEM_ADMIN,):
             with self.subTest(role=role):
                 user = self.user_model.objects.create_user(
                     email=f'{role.lower()}-sem@test.com', password='password123', role=role
@@ -739,10 +738,10 @@ class SuperAdminApiTests(APITestCase):
         semester = Semester.objects.create(
             student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
         )
-        academic_admin = self.user_model.objects.create_user(
-            email='academic-sem@test.com', password='password123', role=self.user_model.Role.ACADEMIC_ADMIN
+        coordinator = self.user_model.objects.create_user(
+            email='coordinator-sem@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(academic_admin)}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
         response = self.client.get(f'/api/v1/students/{self.student.id}/semesters/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data[0]['id'], semester.id)
@@ -787,6 +786,20 @@ class SuperAdminApiTests(APITestCase):
                 self.assertEqual(getattr(self.client, method)(url, {}, format='json').status_code, 405)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
         self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_removed_academic_admin_role_is_rejected(self):
+        response = self.client.patch(
+            f'/api/v1/auth/users/{self.student_user.id}/role/',
+            {'role': 'ACADEMIC_ADMIN'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+
+        create_response = self.client.post('/api/v1/admin/users/', {
+            'first_name': 'Legacy', 'last_name': 'Role', 'email': 'legacy@example.com',
+            'password': 'Segura-12345', 'role': 'ACADEMIC_ADMIN',
+        }, format='json')
+        self.assertEqual(create_response.status_code, 400)
 
     def test_single_admin_restriction_cannot_promote_to_system_admin(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')

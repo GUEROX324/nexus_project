@@ -73,8 +73,8 @@ def populate():
         coord2 = create_or_update_user("coordinacion@nexus.edu", "Carmen", "Valenzuela", CustomUser.Role.PROGRAM_COORDINATOR)
         coord3 = create_or_update_user("jorge@nexus.com", "Jorge", "Medina", CustomUser.Role.PROGRAM_COORDINATOR)
 
-        # Administrador Académico / Escolar
-        academic_admin = create_or_update_user("control.escolar@nexus.edu", "Sofía", "Herrera", CustomUser.Role.ACADEMIC_ADMIN)
+        # Control escolar conserva su cuenta como coordinación académica global.
+        control_escolar = create_or_update_user("control.escolar@nexus.edu", "Sofía", "Herrera", CustomUser.Role.PROGRAM_COORDINATOR)
 
         # Tutores / Asesores
         tutor1 = create_or_update_user("roberto.gomez@nexus.edu", "Roberto", "Gómez Peña", CustomUser.Role.TUTOR)
