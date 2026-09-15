@@ -128,12 +128,7 @@ const mockEmptyOverview: StudentOverview = {
   },
   last_tutoring: null,
   open_agreements: [],
-  thesis_progress: {
-    porcentaje_avance: 0,
-    observaciones: '',
-    componentes_json: {},
-    fecha_registro: null,
-  },
+  thesis_progress: null,
   recent_academic_activity: [],
 };
 
@@ -285,14 +280,15 @@ describe('StudentOverviewComponent', () => {
     fixture.detectChanges();
 
     const comp = fixture.componentInstance;
-    comp['semForm'].patchValue({
+    const semesterForm = fixture.debugElement.query((element) => element.name === 'app-semester-form').componentInstance;
+    semesterForm.form.patchValue({
       numero: 3,
       fecha_inicio: '2027-01-15',
       fecha_fin: '2027-06-30',
       is_active: false,
     });
 
-    comp.registrarSemestre();
+    semesterForm.submit();
 
     const postReq = http.expectOne('http://localhost:8000/api/v1/students/10/semesters/');
     expect(postReq.request.method).toBe('POST');
@@ -329,12 +325,13 @@ describe('StudentOverviewComponent', () => {
     http.expectOne('http://localhost:8000/api/v1/students/10/overview/').flush(mockOverview);
     fixture.componentInstance['mostrarFormSemestre'] = true;
 
-    const comp = fixture.componentInstance;
-    comp['semForm'].patchValue({ fecha_inicio: '2027-06-30', fecha_fin: '2027-01-15' });
-    comp.registrarSemestre();
+    fixture.detectChanges();
+    const semesterForm = fixture.debugElement.query((element) => element.name === 'app-semester-form').componentInstance;
+    semesterForm.form.patchValue({ fecha_inicio: '2027-06-30', fecha_fin: '2027-01-15' });
+    semesterForm.submit();
     fixture.detectChanges();
 
-    expect(comp['semForm'].hasError('dateRange')).toBeTrue();
+    expect(semesterForm.form.hasError('dateRange')).toBeTrue();
     const error = fixture.nativeElement.querySelector('#semester-date-error');
     expect(error?.getAttribute('role')).toBe('alert');
     expect(http.match((request) => request.method === 'POST').length).toBe(0);

@@ -6,9 +6,22 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 
-from .models import AcademicCommittee, CommitteeMembership, AdminAuditLog, CustomUser, Semester, Student
+from .models import (
+    AcademicCommittee,
+    AcademicEvent,
+    Agreement,
+    CommitteeMembership,
+    AdminAuditLog,
+    CustomUser,
+    Publication,
+    ResearchStay,
+    Semester,
+    Student,
+    ThesisProgress,
+    TutoringSession,
+)
 from .permissions import (
     CanAssignRoles,
     CanCreateTutoring,
@@ -205,19 +218,32 @@ class StudentRecordView(APIView):
         if request.user.role == CustomUser.Role.SYSTEM_ADMIN:
             return Response({'detail': 'No tiene permisos para consultar expedientes académicos.'}, status=status.HTTP_403_FORBIDDEN)
 
-        student = Student.objects.filter(pk=student_id).first() or Student.objects.filter(user_id=student_id).first()
-        if student is None:
-            return Response({'detail': 'Expediente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
         permissions = permissions_for_user(request.user)
-        is_owner = student.user_id == request.user.id
-        is_assigned = CommitteeMembership.objects.filter(
-            committee__student=student,
-            user=request.user,
-        ).exists()
-        if not (is_owner and 'records.read.own' in permissions) and not (
-            is_assigned and 'records.read.assigned' in permissions
-        ) and 'academic.read.global' not in permissions:
+        students = Student.objects.filter(pk=student_id)
+        if 'academic.read.global' not in permissions:
+            allowed = Q()
+            if 'records.read.own' in permissions:
+                allowed |= Q(user=request.user)
+            if 'records.read.assigned' in permissions:
+                allowed |= Q(academic_committee__memberships__user=request.user)
+            students = students.filter(allowed) if allowed else students.none()
+
+        student = students.select_related('user').prefetch_related(
+            Prefetch('semesters', queryset=Semester.objects.order_by('numero')),
+            Prefetch('academic_committee__memberships', queryset=CommitteeMembership.objects.select_related('user')),
+            Prefetch('tutoring_sessions', queryset=TutoringSession.objects.order_by('-fecha_sesion', '-id')),
+            Prefetch(
+                'agreements',
+                queryset=Agreement.objects.filter(
+                    estado__in=[Agreement.Status.PENDING, Agreement.Status.IN_PROGRESS]
+                ).select_related('responsable').order_by('fecha_limite'),
+            ),
+            Prefetch('thesis_progresses', queryset=ThesisProgress.objects.order_by('-fecha_registro', '-id')),
+            Prefetch('publication_set', queryset=Publication.objects.order_by('-fecha_publicacion', '-id')),
+            Prefetch('academicevent_set', queryset=AcademicEvent.objects.order_by('-fecha_presentacion', '-id')),
+            Prefetch('researchstay_set', queryset=ResearchStay.objects.order_by('-fecha_inicio', '-id')),
+        ).first()
+        if student is None:
             return Response({'detail': 'Expediente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(StudentRecordSerializer(student).data)

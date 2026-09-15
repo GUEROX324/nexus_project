@@ -90,9 +90,9 @@ export interface StudentOverview {
   thesis_progress: {
     porcentaje_avance: number;
     observaciones: string;
-    componentes_json?: Record<string, any>;
+    componentes_json?: Record<string, unknown>;
     fecha_registro: string | null;
-  };
+  } | null;
   recent_academic_activity: {
     tipo: string;
     titulo: string;

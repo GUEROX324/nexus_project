@@ -190,7 +190,8 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
         }
 
     def get_current_semester(self, student):
-        current = student.semesters.filter(is_active=True).first() or student.semesters.order_by('-numero').first()
+        semesters = list(student.semesters.all())
+        current = next((semester for semester in semesters if semester.is_active), None) or (semesters[-1] if semesters else None)
         if not current:
             return None
         return {
@@ -202,13 +203,14 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
         }
 
     def get_semesters(self, student):
-        return SemesterSerializer(student.semesters.all().order_by('numero'), many=True).data
+        return SemesterSerializer(student.semesters.all(), many=True).data
 
     def get_advisors(self, student):
-        memberships = CommitteeMembership.objects.filter(committee__student=student).select_related('user')
-        principal = memberships.filter(role=CommitteeMembership.Role.ADVISOR).first()
-        coadvisor = memberships.filter(role=CommitteeMembership.Role.CO_ADVISOR).first()
-        others = memberships.filter(role=CommitteeMembership.Role.COMMITTEE_MEMBER)
+        committee = getattr(student, 'academic_committee', None)
+        memberships = list(committee.memberships.all()) if committee else []
+        principal = next((member for member in memberships if member.role == CommitteeMembership.Role.ADVISOR), None)
+        coadvisor = next((member for member in memberships if member.role == CommitteeMembership.Role.CO_ADVISOR), None)
+        others = (member for member in memberships if member.role == CommitteeMembership.Role.COMMITTEE_MEMBER)
 
         def _fmt(member):
             if not member:
@@ -227,7 +229,7 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
         }
 
     def get_last_tutoring(self, student):
-        last = student.tutoring_sessions.order_by('-fecha_sesion', '-id').first()
+        last = next(iter(student.tutoring_sessions.all()), None)
         if not last:
             return None
         return {
@@ -240,9 +242,7 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
         }
 
     def get_open_agreements(self, student):
-        agreements = student.agreements.filter(
-            estado__in=[Agreement.Status.PENDING, Agreement.Status.IN_PROGRESS]
-        ).select_related('responsable').order_by('fecha_limite')
+        agreements = student.agreements.all()
         return [
             {
                 'id': a.id,
@@ -256,14 +256,9 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
         ]
 
     def get_thesis_progress(self, student):
-        progress = student.thesis_progresses.order_by('-fecha_registro', '-id').first()
+        progress = next(iter(student.thesis_progresses.all()), None)
         if not progress:
-            return {
-                'porcentaje_avance': 0,
-                'observaciones': 'Sin avance registrado',
-                'componentes_json': {},
-                'fecha_registro': None,
-            }
+            return None
         return {
             'porcentaje_avance': progress.porcentaje_avance,
             'observaciones': progress.observaciones,
@@ -273,21 +268,21 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
 
     def get_recent_academic_activity(self, student):
         activities = []
-        for pub in Publication.objects.filter(student=student).order_by('-fecha_publicacion', '-id')[:3]:
+        for pub in list(student.publication_set.all())[:3]:
             activities.append({
                 'tipo': 'PUBLICACION',
                 'titulo': pub.titulo,
                 'fecha': str(pub.fecha_publicacion) if pub.fecha_publicacion else '',
                 'detalle': f"{pub.tipo} - {pub.revista_editorial}",
             })
-        for ev in AcademicEvent.objects.filter(student=student).order_by('-fecha_presentacion', '-id')[:3]:
+        for ev in list(student.academicevent_set.all())[:3]:
             activities.append({
                 'tipo': 'EVENTO',
                 'titulo': ev.titulo_ponencia or ev.nombre_evento,
                 'fecha': str(ev.fecha_presentacion) if ev.fecha_presentacion else '',
                 'detalle': f"{ev.tipo_evento} - {ev.sede_lugar}",
             })
-        for stay in ResearchStay.objects.filter(student=student).order_by('-fecha_inicio', '-id')[:3]:
+        for stay in list(student.researchstay_set.all())[:3]:
             activities.append({
                 'tipo': 'ESTANCIA',
                 'titulo': f"Estancia en {stay.institucion_receptora} ({stay.pais})",

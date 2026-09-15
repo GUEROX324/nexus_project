@@ -3,12 +3,13 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.db.utils import OperationalError
+from django.test.utils import CaptureQueriesContext
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APITestCase, APIRequestFactory
 
-from .models import AcademicCommittee, CommitteeMembership, AdminAuditLog, Semester, Student, TutoringSession
+from .models import AcademicCommittee, CommitteeMembership, AdminAuditLog, Semester, Student, ThesisProgress, TutoringSession
 from .views import StudentViewSet
 
 
@@ -755,7 +756,9 @@ class SuperAdminApiTests(APITestCase):
             email='coord_hu06@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
-        response = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
+        self.assertLessEqual(len(queries), 10)
         self.assertEqual(response.status_code, 200)
         data = response.data
         self.assertIn('student', data)
@@ -764,6 +767,26 @@ class SuperAdminApiTests(APITestCase):
         self.assertIn('last_tutoring', data)
         self.assertIn('open_agreements', data)
         self.assertIn('thesis_progress', data)
+        self.assertIsNone(data['thesis_progress'])
+
+        semester = Semester.objects.create(
+            student=self.student, numero=1, fecha_inicio='2026-01-01', fecha_fin='2026-06-30'
+        )
+        ThesisProgress.objects.create(student=self.student, semester=semester, porcentaje_avance=0)
+        response = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
+        self.assertEqual(response.data['thesis_progress']['porcentaje_avance'], 0)
+
+    def test_hu06_overview_is_strictly_read_only_and_system_admin_is_blocked(self):
+        coordinator = self.user_model.objects.create_user(
+            email='coord_hu06_read@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
+        )
+        url = f'/api/v1/students/{self.student.id}/overview/'
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
+        for method in ('post', 'put', 'patch', 'delete'):
+            with self.subTest(method=method):
+                self.assertEqual(getattr(self.client, method)(url, {}, format='json').status_code, 405)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
+        self.assertEqual(self.client.get(url).status_code, 403)
 
     def test_single_admin_restriction_cannot_promote_to_system_admin(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
