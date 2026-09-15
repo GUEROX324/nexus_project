@@ -204,7 +204,7 @@ class AuthenticationApiTests(APITestCase):
 
     def test_only_role_manager_can_list_and_assign_roles(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.user)}')
-        forbidden = self.client.get('/api/auth/users/')
+        forbidden = self.client.get('/api/v1/auth/users/')
         self.assertEqual(forbidden.status_code, 403)
 
         admin = self.user_model.objects.create_user(
@@ -215,10 +215,10 @@ class AuthenticationApiTests(APITestCase):
             role=self.user_model.Role.ACADEMIC_ADMIN,
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(admin)}')
-        listed = self.client.get('/api/auth/users/')
+        listed = self.client.get('/api/v1/auth/users/')
         self.assertEqual(listed.status_code, 200)
         updated = self.client.patch(
-            f'/api/auth/users/{self.user.id}/role/',
+            f'/api/v1/auth/users/{self.user.id}/role/',
             {'role': self.user_model.Role.TUTOR},
             format='json',
         )
@@ -243,7 +243,7 @@ class AuthenticationApiTests(APITestCase):
         with patch.object(AdminAuditLog.objects, 'create', side_effect=RuntimeError('audit unavailable')):
             with self.assertRaises(RuntimeError):
                 self.client.patch(
-                    f'/api/auth/users/{self.user.id}/role/',
+                    f'/api/v1/auth/users/{self.user.id}/role/',
                     {'role': self.user_model.Role.TUTOR},
                     format='json',
                 )
@@ -554,7 +554,7 @@ class SuperAdminApiTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
 
     def test_system_admin_can_create_institutional_user(self):
-        response = self.client.post('/api/admin/users/', {
+        response = self.client.post('/api/v1/admin/users/', {
             'first_name': 'Eva',
             'last_name': 'Diaz',
             'email': 'eva@example.com',
@@ -574,7 +574,7 @@ class SuperAdminApiTests(APITestCase):
     def test_institutional_user_is_not_kept_if_audit_log_fails(self):
         with patch.object(AdminAuditLog.objects, 'create', side_effect=OperationalError('no such table: nexus_adminauditlog')):
             with self.assertRaises(OperationalError):
-                self.client.post('/api/admin/users/', {
+                self.client.post('/api/v1/admin/users/', {
                     'first_name': 'Eva',
                     'last_name': 'Diaz',
                     'email': 'eva@example.com',
@@ -590,7 +590,7 @@ class SuperAdminApiTests(APITestCase):
             role=self.user_model.Role.TUTOR,
         )
         # System Admin is forbidden from managing committee
-        admin_created = self.client.post('/api/admin/committee/', {
+        admin_created = self.client.post('/api/v1/admin/committee/', {
             'user': tutor.id,
             'student': self.student.id,
             'rol_comite': 'COASESOR',
@@ -605,7 +605,7 @@ class SuperAdminApiTests(APITestCase):
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
 
-        created = self.client.post('/api/admin/committee/', {
+        created = self.client.post('/api/v1/admin/committee/', {
             'user': tutor.id,
             'student': self.student.id,
             'rol_comite': 'COASESOR',
@@ -615,7 +615,7 @@ class SuperAdminApiTests(APITestCase):
         self.assertEqual(created.status_code, 201)
         assignment_id = created.data['id']
         updated = self.client.patch(
-            f'/api/admin/committee/{assignment_id}/',
+            f'/api/v1/admin/committee/{assignment_id}/',
             {'is_active': False},
             format='json',
         )
@@ -633,19 +633,19 @@ class SuperAdminApiTests(APITestCase):
 
     def test_non_admin_cannot_create_institutional_user_or_assignment(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.student_user)}')
-        user_response = self.client.post('/api/admin/users/', {}, format='json')
-        assignment_response = self.client.get('/api/admin/committee/')
+        user_response = self.client.post('/api/v1/admin/users/', {}, format='json')
+        assignment_response = self.client.get('/api/v1/admin/committee/')
 
         self.assertEqual(user_response.status_code, 403)
         self.assertEqual(assignment_response.status_code, 403)
 
     def test_system_admin_can_read_audit_history_and_role_changes_are_recorded(self):
         response = self.client.patch(
-            f'/api/auth/users/{self.student_user.id}/role/',
+            f'/api/v1/auth/users/{self.student_user.id}/role/',
             {'role': self.user_model.Role.TUTOR},
             format='json',
         )
-        audit_response = self.client.get('/api/admin/audit/')
+        audit_response = self.client.get('/api/v1/admin/audit/')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(audit_response.status_code, 200)
@@ -654,17 +654,12 @@ class SuperAdminApiTests(APITestCase):
         self.assertEqual(audit_response.data[0]['details']['new_role'], 'TUTOR')
 
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.student_user)}')
-        self.assertEqual(self.client.get('/api/admin/audit/').status_code, 403)
+        self.assertEqual(self.client.get('/api/v1/admin/audit/').status_code, 403)
 
-    def test_system_admin_can_list_active_students_for_assignments(self):
-        inactive_student = Student.objects.create(
-            matricula='DOC-999', nombre_completo='Inactivo', cohorte='2026', estatus_activo=False,
-        )
-        response = self.client.get('/api/admin/students/')
+    def test_system_admin_superuser_cannot_list_academic_students(self):
+        response = self.client.get('/api/v1/admin/students/')
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual([student['id'] for student in response.data], [self.student.id])
-        self.assertNotIn(inactive_student.id, [student['id'] for student in response.data])
+        self.assertEqual(response.status_code, 403)
 
     def test_hu05_create_semester_success(self):
         coordinator = self.user_model.objects.create_user(
@@ -759,7 +754,7 @@ class SuperAdminApiTests(APITestCase):
     def test_single_admin_restriction_cannot_promote_to_system_admin(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
         response = self.client.patch(
-            f'/api/auth/users/{self.student_user.id}/role/',
+            f'/api/v1/auth/users/{self.student_user.id}/role/',
             {'role': 'SYSTEM_ADMIN'},
             format='json',
         )
@@ -768,7 +763,7 @@ class SuperAdminApiTests(APITestCase):
     def test_system_admin_role_cannot_be_modified(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
         response = self.client.patch(
-            f'/api/auth/users/{self.admin.id}/role/',
+            f'/api/v1/auth/users/{self.admin.id}/role/',
             {'role': 'PROGRAM_COORDINATOR'},
             format='json',
         )
@@ -825,7 +820,7 @@ class SuperAdminApiTests(APITestCase):
             user=teacher_user, matricula='FAKESTUD1', nombre_completo='Prof Fake'
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
-        response = self.client.post('/api/admin/committee/', {
+        response = self.client.post('/api/v1/admin/committee/', {
             'user': tutor.id,
             'student': fake_student.id,
             'rol_comite': 'ASESOR_PRINCIPAL',
@@ -890,7 +885,7 @@ class SuperAdminApiTests(APITestCase):
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
         response = self.client.patch(
-            f'/api/auth/users/{tutor.id}/role/',
+            f'/api/v1/auth/users/{tutor.id}/role/',
             {'role': 'STUDENT'},
             format='json',
         )

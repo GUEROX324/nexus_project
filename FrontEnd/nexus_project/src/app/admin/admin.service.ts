@@ -5,7 +5,7 @@ import { environment } from '../../environments/environment';
 import { AuthenticatedUser } from '../core/auth/auth.models';
 import { AdminAuditLog, AdminStudent, CommitteeAssignment, InstitutionalUserCreate } from './admin.models';
 
-const API = environment.apiUrl;
+const API = `${environment.apiUrl}/v1`;
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {

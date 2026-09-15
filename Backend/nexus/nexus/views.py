@@ -174,7 +174,7 @@ class CommitteeAssignmentListCreateView(APIView):
 
 
 class AdminStudentListView(APIView):
-    permission_classes = [CanManageCommittee | CanAssignRoles]
+    permission_classes = [CanManageCommittee]
 
     def get(self, request):
         students = Student.objects.filter(estatus_activo=True).filter(

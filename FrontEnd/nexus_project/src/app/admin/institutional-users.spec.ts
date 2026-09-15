@@ -25,7 +25,7 @@ describe('InstitutionalUsers', () => {
       first_name: 'Eva', last_name: 'Diaz', email: 'eva@example.com', password: 'Segura-12345', role: 'TUTOR',
     };
     component.createUser();
-    const request = http.expectOne('http://localhost:8000/api/admin/users/');
+    const request = http.expectOne('http://localhost:8000/api/v1/admin/users/');
     expect(request.request.method).toBe('POST');
     request.flush({ id: 2, email: 'eva@example.com', first_name: 'Eva', last_name: 'Diaz', role: 'TUTOR', roles: ['TUTOR'], permissions: ['tutoring.create'] });
 
@@ -39,7 +39,7 @@ describe('InstitutionalUsers', () => {
       first_name: 'Eva', last_name: 'Diaz', email: 'eva@example.com', password: 'Segura-12345', role: 'TUTOR',
     };
     component.createUser();
-    const request = http.expectOne('http://localhost:8000/api/admin/users/');
+    const request = http.expectOne('http://localhost:8000/api/v1/admin/users/');
     request.flush({ email: ['Este correo ya esta registrado.'] }, { status: 400, statusText: 'Bad Request' });
 
     expect((component as any).error).toBe('Este correo ya esta registrado.');

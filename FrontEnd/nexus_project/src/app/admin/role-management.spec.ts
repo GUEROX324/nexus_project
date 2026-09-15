@@ -15,7 +15,7 @@ describe('RoleManagement', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(RoleManagement);
     fixture.detectChanges();
-    http.expectOne('http://localhost:8000/api/auth/users/').flush([{
+    http.expectOne('http://localhost:8000/api/v1/auth/users/').flush([{
       id: 1, email: 'student@example.com', first_name: 'Ana', last_name: 'Lopez', role: 'STUDENT',
       roles: ['STUDENT'], permissions: ['records.read.own'],
     }]);
@@ -35,7 +35,7 @@ describe('RoleManagement', () => {
       id: 1, email: 'student@example.com', first_name: 'Ana', last_name: 'Lopez', role: 'STUDENT',
       roles: ['STUDENT'], permissions: ['records.read.own'],
     }, 'TUTOR');
-    http.expectOne('http://localhost:8000/api/auth/users/1/role/').flush({
+    http.expectOne('http://localhost:8000/api/v1/auth/users/1/role/').flush({
       id: 1, email: 'student@example.com', first_name: 'Ana', last_name: 'Lopez', role: 'TUTOR',
       roles: ['TUTOR'], permissions: ['tutoring.create'],
     });
@@ -51,7 +51,7 @@ describe('RoleManagement', () => {
       roles: ['SYSTEM_ADMIN'], permissions: [],
     }, 'STUDENT');
 
-    http.expectNone('http://localhost:8000/api/auth/users/2/role/');
+    http.expectNone('http://localhost:8000/api/v1/auth/users/2/role/');
     expect(component).toBeTruthy();
   });
 
@@ -61,7 +61,7 @@ describe('RoleManagement', () => {
       id: 1, email: 'student@example.com', first_name: 'Ana', last_name: 'Lopez', role: 'STUDENT',
       roles: ['STUDENT'], permissions: ['records.read.own'],
     }, 'TUTOR');
-    const request = http.expectOne('http://localhost:8000/api/auth/users/1/role/');
+    const request = http.expectOne('http://localhost:8000/api/v1/auth/users/1/role/');
     fixture.detectChanges();
 
     expect((component as any).updatingUserIds.has(1)).toBeTrue();

@@ -15,7 +15,7 @@ describe('AuditManagement', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(AuditManagement);
     fixture.detectChanges();
-    http.expectOne('http://localhost:8000/api/admin/audit/').flush([{
+    http.expectOne('http://localhost:8000/api/v1/admin/audit/').flush([{
       id: 1,
       action: 'ROLE_ASSIGNED',
       actor: 1,

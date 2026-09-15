@@ -65,9 +65,9 @@ export class AuthService {
     return this.refreshRequest;
   }
 
-  loadUsers(): Observable<AuthenticatedUser[]> { return this.http.get<AuthenticatedUser[]>(`${environment.apiUrl}/auth/users/`); }
+  loadUsers(): Observable<AuthenticatedUser[]> { return this.http.get<AuthenticatedUser[]>(`${AUTH_API}/users/`); }
   assignRole(userId: number, role: UserRole): Observable<AuthenticatedUser> {
-    return this.http.patch<AuthenticatedUser>(`${environment.apiUrl}/auth/users/${userId}/role/`, { role } satisfies RoleAssignment);
+    return this.http.patch<AuthenticatedUser>(`${AUTH_API}/users/${userId}/role/`, { role } satisfies RoleAssignment);
   }
   hasPermission(permission: Permission): boolean { return this.user()?.permissions.includes(permission) ?? false; }
   accessToken(): string | null { return this.access(); }
