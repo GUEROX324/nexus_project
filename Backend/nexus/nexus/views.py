@@ -7,11 +7,13 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from django.db import transaction
 from django.db.models import Prefetch, Q
+from django.utils import timezone
 
 from .models import (
     AcademicCommittee,
     AcademicEvent,
     Agreement,
+    AgreementAuditLog,
     CommitteeMembership,
     AdminAuditLog,
     CustomUser,
@@ -47,6 +49,8 @@ from .serializers import (
     TutoringParticipantSerializer,
     TutoringObservationSerializer,
     AgreementSerializer,
+    AgreementAuditLogSerializer,
+    AgreementStatusSerializer,
     UserSerializer,
 )
 
@@ -362,6 +366,46 @@ class TutoringSessionViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         agreement = serializer.save(session=session, student=session.student, created_by=request.user)
         return Response(AgreementSerializer(agreement).data, status=status.HTTP_201_CREATED)
+
+
+class AgreementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AgreementSerializer
+    pagination_class = NexusPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        return Agreement.objects.filter(
+            Q(student__user=user) | Q(student__academic_committee__memberships__user=user) |
+            Q(student__isnull=False) if 'academic.read.global' in permissions_for_user(user) else
+            Q(student__user=user) | Q(student__academic_committee__memberships__user=user)
+        ).select_related('student', 'responsable').distinct().order_by('fecha_limite', 'id')
+
+    from rest_framework.decorators import action
+
+    @action(detail=True, methods=['patch'], url_path='status')
+    @transaction.atomic
+    def status(self, request, pk=None):
+        agreement = self.get_object()
+        if agreement.responsable_id != request.user.id:
+            return Response({'detail': 'Sólo el responsable puede actualizar el estado.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = AgreementStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_status = serializer.validated_data['estado']
+        allowed = {Agreement.Status.PENDING: Agreement.Status.IN_PROGRESS, Agreement.Status.IN_PROGRESS: Agreement.Status.COMPLETED}
+        if allowed.get(agreement.estado) != new_status:
+            return Response({'estado': ['Transición de estado no permitida.']}, status=status.HTTP_400_BAD_REQUEST)
+        previous = agreement.estado
+        agreement.estado = new_status
+        agreement.fecha_conclusion = timezone.localdate() if new_status == Agreement.Status.COMPLETED else None
+        agreement.save(update_fields=['estado', 'fecha_conclusion', 'updated_at'])
+        AgreementAuditLog.objects.create(agreement=agreement, user=request.user, estado_anterior=previous,
+                                         estado_nuevo=new_status, comentario=serializer.validated_data['comentario'])
+        return Response(AgreementSerializer(agreement).data)
+
+    @action(detail=True, methods=['get'], url_path='audit-log')
+    def audit_log(self, request, pk=None):
+        return Response(AgreementAuditLogSerializer(self.get_object().audit_logs.select_related('user'), many=True).data)
 
 
 class GlobalAcademicOverviewView(APIView):

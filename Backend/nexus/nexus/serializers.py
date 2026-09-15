@@ -23,6 +23,7 @@ from .models import (
     TutoringSession,
     TutoringParticipant,
     TutoringObservation,
+    AgreementAuditLog,
 )
 from .permissions import permissions_for_user
 
@@ -400,6 +401,20 @@ class TutoringSessionCreateSerializer(serializers.ModelSerializer):
             created_by=self.context['request'].user,
             **validated_data,
         )
+
+
+class AgreementAuditLogSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+
+    class Meta:
+        model = AgreementAuditLog
+        fields = ('id', 'user', 'user_email', 'estado_anterior', 'estado_nuevo', 'comentario', 'fecha_cambio')
+        read_only_fields = fields
+
+
+class AgreementStatusSerializer(serializers.Serializer):
+    estado = serializers.ChoiceField(choices=(Agreement.Status.IN_PROGRESS, Agreement.Status.COMPLETED))
+    comentario = serializers.CharField(required=False, allow_blank=True, default='')
 
 
 class AgreementSerializer(serializers.ModelSerializer):
