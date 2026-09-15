@@ -22,6 +22,7 @@ from .models import (
     ThesisProgress,
     TutoringSession,
     TutoringParticipant,
+    TutoringObservation,
 )
 from .permissions import (
     CanAssignRoles,
@@ -44,6 +45,7 @@ from .serializers import (
     TutoringSessionCreateSerializer,
     TutoringSessionSerializer,
     TutoringParticipantSerializer,
+    TutoringObservationSerializer,
     UserSerializer,
 )
 
@@ -339,6 +341,16 @@ class TutoringSessionViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         participant = serializer.save(session=session)
         return Response(TutoringParticipantSerializer(participant).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get', 'post'], url_path='observations')
+    def observations(self, request, pk=None):
+        session = self.get_object()
+        if request.method == 'GET':
+            return Response(TutoringObservationSerializer(session.observations.select_related('autor'), many=True).data)
+        serializer = TutoringObservationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        observation = serializer.save(session=session, autor=request.user)
+        return Response(TutoringObservationSerializer(observation).data, status=status.HTTP_201_CREATED)
 
 
 class GlobalAcademicOverviewView(APIView):

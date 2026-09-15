@@ -22,6 +22,7 @@ from .models import (
     ThesisProgress,
     TutoringSession,
     TutoringParticipant,
+    TutoringObservation,
 )
 from .permissions import permissions_for_user
 
@@ -392,6 +393,18 @@ class TutoringSessionCreateSerializer(serializers.ModelSerializer):
             created_by=self.context['request'].user,
             **validated_data,
         )
+
+
+class TutoringObservationSerializer(serializers.ModelSerializer):
+    autor_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TutoringObservation
+        fields = ('id', 'session', 'autor', 'autor_nombre', 'tema_revisado', 'observaciones_detalladas', 'created_at')
+        read_only_fields = ('id', 'session', 'autor', 'autor_nombre', 'created_at')
+
+    def get_autor_nombre(self, observation):
+        return f'{observation.autor.first_name} {observation.autor.last_name}'.strip() or observation.autor.email
 
 
 class TutoringParticipantSerializer(serializers.ModelSerializer):
