@@ -20,7 +20,7 @@ export class AcademicService {
   }
 
   createTutoringSession(data: TutoringSessionData): Observable<TutoringSession> {
-    return this.http.post<TutoringSession>(`${API}/tutoring/`, data);
+    return this.http.post<TutoringSession>(`${API}/tutoring-sessions/`, data);
   }
 
   getGlobalOverview(page = 1): Observable<PaginatedResponse<StudentRecord>> {

@@ -4,9 +4,9 @@ from .models import CustomUser
 
 
 ROLE_PERMISSIONS = {
-    CustomUser.Role.STUDENT: {'records.read.own'},
-    CustomUser.Role.TUTOR: {'records.read.assigned', 'tutoring.create'},
-    CustomUser.Role.COMMITTEE_MEMBER: {'records.read.assigned', 'tutoring.create'},
+    CustomUser.Role.STUDENT: {'records.read.own', 'tutoring.create'},
+    CustomUser.Role.TUTOR: {'records.read.assigned', 'tutoring.create', 'tutoring.manage'},
+    CustomUser.Role.COMMITTEE_MEMBER: {'records.read.assigned', 'tutoring.create', 'tutoring.manage'},
     CustomUser.Role.PROGRAM_COORDINATOR: {
         'academic.read.global',
         'students.create',

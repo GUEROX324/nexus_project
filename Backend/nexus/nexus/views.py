@@ -288,24 +288,43 @@ class StudentViewSet(
         return Response(StudentRecordSerializer(student).data, status=status.HTTP_201_CREATED)
 
 
-class TutoringSessionCreateView(APIView):
+def can_access_student(user, student, write=False):
+    if student.user_id == user.id:
+        return not write or user.role == CustomUser.Role.STUDENT
+    return CommitteeMembership.objects.filter(committee__student=student, user=user).exists()
+
+
+class TutoringSessionViewSet(viewsets.ModelViewSet):
     permission_classes = [CanCreateTutoring]
+    pagination_class = NexusPagination
 
-    @transaction.atomic
-    def post(self, request):
-        serializer = TutoringSessionCreateSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
+    def get_serializer_class(self):
+        return TutoringSessionCreateSerializer if self.action in ('create', 'update', 'partial_update') else TutoringSessionSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return TutoringSession.objects.filter(
+            Q(student__user=user) | Q(student__academic_committee__memberships__user=user)
+        ).distinct().order_by('-fecha_sesion', '-id')
+
+    def perform_create(self, serializer):
         student = serializer.validated_data['student']
-        user = request.user
-        is_assigned = CommitteeMembership.objects.filter(committee__student=student, user=user).exists()
-        if not is_assigned:
-            return Response(
-                {'detail': 'No puede registrar tutorias para este estudiante.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        if not can_access_student(self.request.user, student):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('No puede registrar tutorías para este estudiante.')
+        serializer.save()
 
-        session = serializer.save()
-        return Response(TutoringSessionSerializer(session).data, status=status.HTTP_201_CREATED)
+    def perform_update(self, serializer):
+        if not can_access_student(self.request.user, self.get_object().student, write=True):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('No puede modificar esta tutoría.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_access_student(self.request.user, instance.student, write=True):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('No puede eliminar esta tutoría.')
+        instance.delete()
 
 
 class GlobalAcademicOverviewView(APIView):

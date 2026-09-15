@@ -380,7 +380,9 @@ class TutoringSessionCreateSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs):
-        if attrs['semester'].student_id != attrs['student'].id:
+        student = attrs.get('student', self.instance.student if self.instance else None)
+        semester = attrs.get('semester', self.instance.semester if self.instance else None)
+        if semester.student_id != student.id:
             raise serializers.ValidationError('El semestre no pertenece al estudiante.')
         return attrs
 
