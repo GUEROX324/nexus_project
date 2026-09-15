@@ -101,4 +101,16 @@ export interface StudentOverview {
   }[];
 }
 
+export interface Agreement {
+  id: number;
+  student: number;
+  session: number | null;
+  descripcion: string;
+  responsable: number;
+  responsable_nombre: string;
+  fecha_limite: string;
+  estado: 'PENDIENTE' | 'EN_PROCESO' | 'CONCLUIDO';
+  is_vencido: boolean;
+}
+
 export type AcademicRole = UserRole;

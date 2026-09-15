@@ -375,11 +375,18 @@ class AgreementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
 
     def get_queryset(self):
         user = self.request.user
-        return Agreement.objects.filter(
-            Q(student__user=user) | Q(student__academic_committee__memberships__user=user) |
-            Q(student__isnull=False) if 'academic.read.global' in permissions_for_user(user) else
+        queryset = Agreement.objects.all() if 'academic.read.global' in permissions_for_user(user) else Agreement.objects.filter(
             Q(student__user=user) | Q(student__academic_committee__memberships__user=user)
-        ).select_related('student', 'responsable').distinct().order_by('fecha_limite', 'id')
+        )
+        if student := self.request.query_params.get('student'):
+            queryset = queryset.filter(student_id=student)
+        if responsable := self.request.query_params.get('responsable'):
+            queryset = queryset.filter(responsable_id=responsable)
+        if estado := self.request.query_params.get('estado'):
+            queryset = queryset.filter(estado=estado)
+        if self.request.query_params.get('vencido') == 'true':
+            queryset = queryset.exclude(estado=Agreement.Status.COMPLETED).filter(fecha_limite__lt=timezone.localdate())
+        return queryset.select_related('student', 'responsable').distinct().order_by('fecha_limite', 'id')
 
     from rest_framework.decorators import action
 

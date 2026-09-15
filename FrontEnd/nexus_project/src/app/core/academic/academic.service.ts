@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PaginatedResponse } from '../../shared/pagination';
-import { StudentRecord, TutoringSession, TutoringSessionData, Semester, CreateSemesterData, StudentOverview } from './academic.models';
+import { StudentRecord, TutoringSession, TutoringSessionData, Semester, CreateSemesterData, StudentOverview, Agreement } from './academic.models';
 
 const API = environment.apiUrl;
 
@@ -21,6 +21,11 @@ export class AcademicService {
 
   createTutoringSession(data: TutoringSessionData): Observable<TutoringSession> {
     return this.http.post<TutoringSession>(`${API}/tutoring-sessions/`, data);
+  }
+
+  getAgreements(filters: { page?: number; student?: number; estado?: string; vencido?: boolean } = {}): Observable<PaginatedResponse<Agreement>> {
+    const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
+    return this.http.get<PaginatedResponse<Agreement>>(`${API}/agreements/?${query}`);
   }
 
   getGlobalOverview(page = 1): Observable<PaginatedResponse<StudentRecord>> {
