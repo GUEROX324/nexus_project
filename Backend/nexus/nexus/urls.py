@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     GlobalAcademicOverviewView,
@@ -46,10 +47,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include(router.urls)),
     path('api/', include(router.urls)),
-    path('api/auth/login/', LoginView.as_view(), name='auth-login'),
+    path('api/v1/auth/login/', LoginView.as_view(), name='auth-login'),
+    path('api/v1/auth/token/refresh/', TokenRefreshView.as_view(), name='auth-token-refresh'),
+    path('api/v1/auth/logout/', LogoutView.as_view(), name='auth-logout'),
+    path('api/v1/auth/me/', MeView.as_view(), name='auth-me'),
     path('api/auth/register/', RegisterView.as_view(), name='auth-register'),
-    path('api/auth/logout/', LogoutView.as_view(), name='auth-logout'),
-    path('api/auth/me/', MeView.as_view(), name='auth-me'),
     path('api/auth/users/', UserRoleListView.as_view(), name='auth-users'),
     path('api/auth/users/<int:user_id>/role/', UserRoleUpdateView.as_view(), name='auth-user-role'),
     path('api/admin/users/', InstitutionalUserCreateView.as_view(), name='admin-users'),

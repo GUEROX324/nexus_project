@@ -1,10 +1,8 @@
-from django.contrib.auth import logout
 from rest_framework import mixins, status, viewsets
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 from django.db import transaction
 from django.db.models import Q
@@ -43,9 +41,9 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
-        token, _ = Token.objects.get_or_create(user=user)
+        refresh = RefreshToken.for_user(user)
         return Response(
-            {**UserSerializer(user).data, 'token': token.key},
+            {'access': str(refresh.access_token), 'refresh': str(refresh), 'user': UserSerializer(user).data},
             status=status.HTTP_200_OK,
         )
 
@@ -57,26 +55,28 @@ class RegisterView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        token = Token.objects.create(user=user)
+        refresh = RefreshToken.for_user(user)
         return Response(
-            {**UserSerializer(user).data, 'token': token.key},
+            {'access': str(refresh.access_token), 'refresh': str(refresh), 'user': UserSerializer(user).data},
             status=status.HTTP_201_CREATED,
         )
 
 
 class LogoutView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        if request.auth:
-            request.auth.delete()
-        logout(request)
+        refresh = request.data.get('refresh')
+        if not refresh:
+            return Response({'detail': 'Refresh token requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            RefreshToken(refresh).blacklist()
+        except TokenError:
+            return Response({'detail': 'Refresh token inválido.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'logout': True}, status=status.HTTP_200_OK)
 
 
 class MeView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -84,7 +84,6 @@ class MeView(APIView):
 
 
 class UserRoleListView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanAssignRoles | CanManageCommittee]
 
     def get(self, request):
@@ -93,7 +92,6 @@ class UserRoleListView(APIView):
 
 
 class UserRoleUpdateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanAssignRoles]
 
     @transaction.atomic
@@ -137,7 +135,6 @@ class UserRoleUpdateView(APIView):
 
 
 class InstitutionalUserCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanAssignRoles]
 
     @transaction.atomic
@@ -155,7 +152,6 @@ class InstitutionalUserCreateView(APIView):
 
 
 class CommitteeAssignmentListCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanManageCommittee]
 
     def get(self, request):
@@ -178,7 +174,6 @@ class CommitteeAssignmentListCreateView(APIView):
 
 
 class AdminStudentListView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanManageCommittee | CanAssignRoles]
 
     def get(self, request):
@@ -188,7 +183,6 @@ class AdminStudentListView(APIView):
         return Response(StudentRecordSerializer(students, many=True).data)
 
 class StudentCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanCreateStudent]
 
     def post(self, request):
@@ -203,7 +197,6 @@ class StudentCreateView(APIView):
 
 
 class CommitteeAssignmentUpdateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanManageCommittee]
 
     @transaction.atomic
@@ -227,7 +220,6 @@ class CommitteeAssignmentUpdateView(APIView):
 
 
 class AdminAuditLogListView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanAssignRoles]
 
     def get(self, request):
@@ -236,7 +228,6 @@ class AdminAuditLogListView(APIView):
 
 
 class StudentRecordView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, student_id):
@@ -268,7 +259,6 @@ class StudentViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     serializer_class = StudentRecordSerializer
 
@@ -303,7 +293,6 @@ class StudentViewSet(
 
 
 class TutoringSessionCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanCreateTutoring]
 
     @transaction.atomic
@@ -328,7 +317,6 @@ class TutoringSessionCreateView(APIView):
 
 
 class GlobalAcademicOverviewView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [CanReadGlobalAcademics]
 
     def get(self, request):
@@ -337,7 +325,6 @@ class GlobalAcademicOverviewView(APIView):
 
 
 class StudentSemesterListCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def _get_student_and_check_access(self, request, student_id, write=False):
@@ -377,7 +364,6 @@ class StudentSemesterListCreateView(APIView):
 
 
 class StudentSemesterDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, student_id, semester_id):

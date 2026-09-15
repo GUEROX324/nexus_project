@@ -52,8 +52,10 @@ export interface RegistrationData extends LoginCredentials {
   grammatical_gender?: GrammaticalGender;
 }
 
-export interface LoginResponse extends AuthenticatedUser {
-  token: string;
+export interface AuthResponse {
+  access: string;
+  refresh: string;
+  user: AuthenticatedUser;
 }
 
 export interface RoleAssignment {

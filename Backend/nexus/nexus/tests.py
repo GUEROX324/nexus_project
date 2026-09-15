@@ -4,11 +4,15 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db.utils import OperationalError
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APITestCase, APIRequestFactory
 
 from .models import AcademicCommittee, AdminAuditLog, Semester, Student, TutoringSession
 from .views import StudentViewSet
+
+
+def jwt_for(user):
+    return str(RefreshToken.for_user(user).access_token)
 
 
 class StudentRBACRelationVisibilityTests(APITestCase):
@@ -50,15 +54,13 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         )
 
     def test_coordinator_sees_all_students(self):
-        token = Token.objects.create(user=self.coordinator)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.coordinator)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.data), 2)
 
     def test_system_admin_cannot_read_academic_students(self):
-        admin_token = Token.objects.create(user=self.admin)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
 
         listed = self.client.get('/api/v1/students/')
         retrieved = self.client.get(f'/api/v1/students/{self.student_1.id}/')
@@ -68,8 +70,7 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         self.assertEqual(retrieved.status_code, 404)
 
     def test_tutor_sees_only_assigned_students(self):
-        token = Token.objects.create(user=self.tutor_1)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor_1)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.data), 1)
@@ -77,8 +78,7 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         self.assertEqual(res.data[0]['matricula'], 'DOC-001')
 
     def test_unassigned_tutor_sees_empty_list(self):
-        token = Token.objects.create(user=self.tutor_2)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor_2)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.data), 0)
@@ -87,15 +87,13 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         self.assignment.is_active = False
         self.assignment.save()
 
-        token = Token.objects.create(user=self.tutor_1)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor_1)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.data), 0)
 
     def test_student_sees_only_own_record(self):
-        token = Token.objects.create(user=self.student_user_1)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.student_user_1)}')
         res = self.client.get('/api/v1/students/')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.data), 1)
@@ -110,8 +108,7 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         self.assertEqual(list(qs), [self.student_1])
 
     def test_student_mutations_are_not_exposed(self):
-        token = Token.objects.create(user=self.coordinator)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.coordinator)}')
         url = f'/api/v1/students/{self.student_1.id}/'
 
         for method in ('put', 'patch', 'delete'):
@@ -136,17 +133,18 @@ class AuthenticationApiTests(APITestCase):
 
     def test_login_returns_token_and_minimal_user_data(self):
         response = self.client.post(
-            '/api/auth/login/',
+            '/api/v1/auth/login/',
             {'email': self.user.email, 'password': self.password},
             format='json',
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('token', response.data)
-        self.assertEqual(response.data['role'], 'STUDENT')
-        self.assertEqual(response.data['email'], self.user.email)
-        self.assertEqual(response.data['grammatical_gender'], 'UNSPECIFIED')
-        self.assertNotIn('password', response.data)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
+        self.assertEqual(response.data['user']['role'], 'STUDENT')
+        self.assertEqual(response.data['user']['email'], self.user.email)
+        self.assertEqual(response.data['user']['grammatical_gender'], 'UNSPECIFIED')
+        self.assertNotIn('password', response.data['user'])
 
     def test_seed_account_uses_real_password_hash_and_rejects_former_master_password(self):
         call_command('populate_data', verbosity=0)
@@ -157,33 +155,55 @@ class AuthenticationApiTests(APITestCase):
         self.assertFalse(seeded_user.check_password('Password123!'))
 
         valid_response = self.client.post(
-            '/api/auth/login/',
+            '/api/v1/auth/login/',
             {'email': seeded_user.email, 'password': 'Admin1234!'},
             format='json',
         )
         invalid_response = self.client.post(
-            '/api/auth/login/',
+            '/api/v1/auth/login/',
             {'email': seeded_user.email, 'password': 'Password123!'},
             format='json',
         )
 
         self.assertEqual(valid_response.status_code, 200)
         self.assertEqual(invalid_response.status_code, 400)
-        self.assertNotIn('token', invalid_response.data)
+        self.assertNotIn('access', invalid_response.data)
+
+    def test_refresh_rotates_and_blacklists_previous_token(self):
+        login = self.client.post(
+            '/api/v1/auth/login/',
+            {'email': self.user.email, 'password': self.password},
+            format='json',
+        )
+
+        refreshed = self.client.post(
+            '/api/v1/auth/token/refresh/',
+            {'refresh': login.data['refresh']},
+            format='json',
+        )
+        reused = self.client.post(
+            '/api/v1/auth/token/refresh/',
+            {'refresh': login.data['refresh']},
+            format='json',
+        )
+
+        self.assertEqual(refreshed.status_code, 200)
+        self.assertIn('access', refreshed.data)
+        self.assertIn('refresh', refreshed.data)
+        self.assertNotEqual(refreshed.data['refresh'], login.data['refresh'])
+        self.assertEqual(reused.status_code, 401)
 
     def test_session_profile_includes_effective_permissions(self):
-        token = Token.objects.create(user=self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.user)}')
 
-        response = self.client.get('/api/auth/me/')
+        response = self.client.get('/api/v1/auth/me/')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['roles'], ['STUDENT'])
         self.assertEqual(response.data['permissions'], ['records.read.own'])
 
     def test_only_role_manager_can_list_and_assign_roles(self):
-        token = Token.objects.create(user=self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.user)}')
         forbidden = self.client.get('/api/auth/users/')
         self.assertEqual(forbidden.status_code, 403)
 
@@ -194,7 +214,7 @@ class AuthenticationApiTests(APITestCase):
             last_name='Nexus',
             role=self.user_model.Role.ACADEMIC_ADMIN,
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=admin).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(admin)}')
         listed = self.client.get('/api/auth/users/')
         self.assertEqual(listed.status_code, 200)
         updated = self.client.patch(
@@ -218,7 +238,7 @@ class AuthenticationApiTests(APITestCase):
             last_name='Nexus',
             role=self.user_model.Role.ACADEMIC_ADMIN,
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=admin).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(admin)}')
 
         with patch.object(AdminAuditLog.objects, 'create', side_effect=RuntimeError('audit unavailable')):
             with self.assertRaises(RuntimeError):
@@ -234,7 +254,7 @@ class AuthenticationApiTests(APITestCase):
 
     def test_invalid_credentials_use_generic_error(self):
         response = self.client.post(
-            '/api/auth/login/',
+            '/api/v1/auth/login/',
             {'email': self.user.email, 'password': 'incorrecta'},
             format='json',
         )
@@ -244,14 +264,14 @@ class AuthenticationApiTests(APITestCase):
 
     def test_former_master_password_is_rejected_without_creating_token(self):
         response = self.client.post(
-            '/api/auth/login/',
+            '/api/v1/auth/login/',
             {'email': self.user.email, 'password': 'Password123!'},
             format='json',
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertNotIn('token', response.data)
-        self.assertFalse(Token.objects.filter(user=self.user).exists())
+        self.assertNotIn('access', response.data)
+        self.assertNotIn('access', response.data)
 
     def test_password_for_another_user_does_not_authenticate_target_user(self):
         other_password = 'Otra-Segura-456'
@@ -262,33 +282,34 @@ class AuthenticationApiTests(APITestCase):
         )
 
         response = self.client.post(
-            '/api/auth/login/',
+            '/api/v1/auth/login/',
             {'email': self.user.email, 'password': other_password},
             format='json',
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertFalse(Token.objects.filter(user=self.user).exists())
+        self.assertNotIn('access', response.data)
 
     def test_login_remains_case_insensitive_for_email(self):
         response = self.client.post(
-            '/api/auth/login/',
+            '/api/v1/auth/login/',
             {'email': self.user.email.upper(), 'password': self.password},
             format='json',
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('token', response.data)
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
 
     def test_former_master_password_rejects_unknown_email(self):
         response = self.client.post(
-            '/api/auth/login/',
+            '/api/v1/auth/login/',
             {'email': 'unknown@example.com', 'password': 'Password123!'},
             format='json',
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertNotIn('token', response.data)
+        self.assertNotIn('access', response.data)
 
     def test_inactive_user_cannot_login(self):
         self.user.is_active = False
@@ -297,34 +318,33 @@ class AuthenticationApiTests(APITestCase):
         for password in (self.password, 'Password123!'):
             with self.subTest(password=password):
                 response = self.client.post(
-                    '/api/auth/login/',
+                    '/api/v1/auth/login/',
                     {'email': self.user.email, 'password': password},
                     format='json',
                 )
 
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(response.data['non_field_errors'][0], 'Correo o contrasena incorrectos.')
-                self.assertFalse(Token.objects.filter(user=self.user).exists())
+                self.assertNotIn('access', response.data)
 
     def test_me_requires_a_valid_token(self):
-        token = Token.objects.create(user=self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.user)}')
 
-        response = self.client.get('/api/auth/me/')
+        response = self.client.get('/api/v1/auth/me/')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['email'], self.user.email)
 
     def test_logout_revokes_token(self):
-        token = Token.objects.create(user=self.user)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
 
-        logout_response = self.client.post('/api/auth/logout/', {}, format='json')
-        protected_response = self.client.get('/api/auth/me/')
+        logout_response = self.client.post('/api/v1/auth/logout/', {'refresh': str(refresh)}, format='json')
+        refresh_response = self.client.post('/api/v1/auth/token/refresh/', {'refresh': str(refresh)}, format='json')
 
         self.assertEqual(logout_response.status_code, 200)
         self.assertEqual(logout_response.data, {'logout': True})
-        self.assertEqual(protected_response.status_code, 401)
+        self.assertEqual(refresh_response.status_code, 401)
 
     def test_register_creates_student_and_returns_authenticated_session(self):
         response = self.client.post(
@@ -342,8 +362,9 @@ class AuthenticationApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['role'], 'STUDENT')
-        self.assertIn('token', response.data)
+        self.assertEqual(response.data['user']['role'], 'STUDENT')
+        self.assertIn('access', response.data)
+        self.assertIn('refresh', response.data)
         user = self.user_model.objects.get(email='luis@example.com')
         student = Student.objects.get(user=user)
         self.assertEqual(student.matricula, 'DOC-001')
@@ -378,9 +399,8 @@ class AuthenticationApiTests(APITestCase):
                 email=f'{role.lower()}@nexus.test', password='Password123!', role=role
             )
             self.assertIsNone(u.student)
-            token = Token.objects.create(user=u)
-            self.client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
-            response = self.client.get('/api/auth/me/')
+            self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(u)}')
+            response = self.client.get('/api/v1/auth/me/')
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.data['role'], role)
             self.assertIsNone(response.data['student_id'])
@@ -431,7 +451,7 @@ class ScopeAuthorizationApiTests(APITestCase):
         )
 
     def authenticate(self, user):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=user).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(user)}')
 
     def test_student_can_read_only_own_record(self):
         self.authenticate(self.student_user)
@@ -531,7 +551,7 @@ class SuperAdminApiTests(APITestCase):
         self.student = Student.objects.create(
             user=self.student_user, matricula='DOC-001', nombre_completo='Ana Lopez', cohorte='2026',
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=self.admin).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
 
     def test_system_admin_can_create_institutional_user(self):
         response = self.client.post('/api/admin/users/', {
@@ -583,7 +603,7 @@ class SuperAdminApiTests(APITestCase):
             email='coord@example.com', password='Correcta-12345', first_name='Carlos', last_name='Coord',
             role=self.user_model.Role.PROGRAM_COORDINATOR,
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
 
         created = self.client.post('/api/admin/committee/', {
             'user': tutor.id,
@@ -612,7 +632,7 @@ class SuperAdminApiTests(APITestCase):
         )
 
     def test_non_admin_cannot_create_institutional_user_or_assignment(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=self.student_user).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.student_user)}')
         user_response = self.client.post('/api/admin/users/', {}, format='json')
         assignment_response = self.client.get('/api/admin/committee/')
 
@@ -633,7 +653,7 @@ class SuperAdminApiTests(APITestCase):
         self.assertEqual(audit_response.data[0]['details']['previous_role'], 'STUDENT')
         self.assertEqual(audit_response.data[0]['details']['new_role'], 'TUTOR')
 
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=self.student_user).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.student_user)}')
         self.assertEqual(self.client.get('/api/admin/audit/').status_code, 403)
 
     def test_system_admin_can_list_active_students_for_assignments(self):
@@ -650,7 +670,7 @@ class SuperAdminApiTests(APITestCase):
         coordinator = self.user_model.objects.create_user(
             email='coord_sem@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coordinator).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
         payload = {
             'numero': 1,
             'fecha_inicio': '2025-01-15',
@@ -667,7 +687,7 @@ class SuperAdminApiTests(APITestCase):
         coordinator = self.user_model.objects.create_user(
             email='coord_sem_range@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coordinator).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
         payload = {
             'numero': 7,
             'fecha_inicio': '2025-01-15',
@@ -681,7 +701,7 @@ class SuperAdminApiTests(APITestCase):
         coordinator = self.user_model.objects.create_user(
             email='coord_sem_date@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coordinator).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
         payload = {
             'numero': 2,
             'fecha_inicio': '2025-06-30',
@@ -698,7 +718,7 @@ class SuperAdminApiTests(APITestCase):
         coordinator = self.user_model.objects.create_user(
             email='coord_sem_dup@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coordinator).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
         payload = {
             'numero': 1,
             'fecha_inicio': '2025-01-15',
@@ -712,7 +732,7 @@ class SuperAdminApiTests(APITestCase):
         student_user = self.user_model.objects.create_user(
             email='estudiante_sem@test.com', password='password123', role=self.user_model.Role.STUDENT
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=student_user).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(student_user)}')
         payload = {
             'numero': 1,
             'fecha_inicio': '2025-01-15',
@@ -725,7 +745,7 @@ class SuperAdminApiTests(APITestCase):
         coordinator = self.user_model.objects.create_user(
             email='coord_hu06@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coordinator).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coordinator)}')
         response = self.client.get(f'/api/records/{self.student.id}/')
         self.assertEqual(response.status_code, 200)
         data = response.data
@@ -737,8 +757,7 @@ class SuperAdminApiTests(APITestCase):
         self.assertIn('thesis_progress', data)
 
     def test_single_admin_restriction_cannot_promote_to_system_admin(self):
-        admin_token, _ = Token.objects.get_or_create(user=self.admin)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
         response = self.client.patch(
             f'/api/auth/users/{self.student_user.id}/role/',
             {'role': 'SYSTEM_ADMIN'},
@@ -747,8 +766,7 @@ class SuperAdminApiTests(APITestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_system_admin_role_cannot_be_modified(self):
-        admin_token, _ = Token.objects.get_or_create(user=self.admin)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
         response = self.client.patch(
             f'/api/auth/users/{self.admin.id}/role/',
             {'role': 'PROGRAM_COORDINATOR'},
@@ -760,7 +778,7 @@ class SuperAdminApiTests(APITestCase):
         coord = self.user_model.objects.create_user(
             email='coord_val@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
         response = self.client.post('/api/coordinator/students/', {
             'first_name': 'Juan123',
             'last_name': 'Perez',
@@ -778,7 +796,7 @@ class SuperAdminApiTests(APITestCase):
         coord = self.user_model.objects.create_user(
             email='coord_val2@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
         response = self.client.post('/api/coordinator/students/', {
             'first_name': 'Juan',
             'last_name': 'Perez',
@@ -806,7 +824,7 @@ class SuperAdminApiTests(APITestCase):
         fake_student = Student.objects.create(
             user=teacher_user, matricula='FAKESTUD1', nombre_completo='Prof Fake'
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
         response = self.client.post('/api/admin/committee/', {
             'user': tutor.id,
             'student': fake_student.id,
@@ -822,7 +840,7 @@ class SuperAdminApiTests(APITestCase):
         sem = Semester.objects.create(
             student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=unassigned_tutor).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(unassigned_tutor)}')
         response = self.client.post('/api/tutoring/', {
             'student': self.student.id,
             'semester': sem.id,
@@ -845,7 +863,7 @@ class SuperAdminApiTests(APITestCase):
         sem = Semester.objects.create(
             student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=assigned_tutor).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(assigned_tutor)}')
         response = self.client.post('/api/tutoring/', {
             'student': self.student.id,
             'semester': sem.id,
@@ -859,7 +877,7 @@ class SuperAdminApiTests(APITestCase):
         coord = self.user_model.objects.create_user(
             email='coord_hu06_sum@test.com', password='password123', role=self.user_model.Role.PROGRAM_COORDINATOR
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {Token.objects.create(user=coord).key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
         res1 = self.client.get(f'/api/students/{self.student.id}/academic-summary/')
         self.assertEqual(res1.status_code, 200)
         res2 = self.client.get(f'/api/v1/students/{self.student.id}/overview/')
@@ -870,8 +888,7 @@ class SuperAdminApiTests(APITestCase):
         tutor = self.user_model.objects.create_user(
             email='tutor_role_change@test.com', password='password123', role=self.user_model.Role.TUTOR
         )
-        admin_token, _ = Token.objects.get_or_create(user=self.admin)
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {admin_token.key}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.admin)}')
         response = self.client.patch(
             f'/api/auth/users/{tutor.id}/role/',
             {'role': 'STUDENT'},
@@ -900,11 +917,11 @@ class SuperAdminApiTests(APITestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['grammatical_gender'], 'FEMININE')
+        self.assertEqual(response.data['user']['grammatical_gender'], 'FEMININE')
 
-        token = response.data['token']
-        self.client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
-        me_response = self.client.get('/api/auth/me/')
+        token = response.data['access']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        me_response = self.client.get('/api/v1/auth/me/')
         self.assertEqual(me_response.status_code, 200)
         self.assertEqual(me_response.data['grammatical_gender'], 'FEMININE')
 
