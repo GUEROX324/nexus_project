@@ -386,6 +386,13 @@ class TutoringSessionCreateSerializer(serializers.ModelSerializer):
         semester = attrs.get('semester', self.instance.semester if self.instance else None)
         if semester.student_id != student.id:
             raise serializers.ValidationError('El semestre no pertenece al estudiante.')
+        fecha_sesion = attrs.get('fecha_sesion', self.instance.fecha_sesion if self.instance else None)
+        proxima_fecha = attrs.get('proxima_reunion_fecha', self.instance.proxima_reunion_fecha if self.instance else None)
+        proxima_notas = attrs.get('proxima_reunion_notas', self.instance.proxima_reunion_notas if self.instance else '')
+        if proxima_fecha and proxima_fecha <= fecha_sesion:
+            raise serializers.ValidationError({'proxima_reunion_fecha': 'La próxima reunión debe ser posterior a la sesión.'})
+        if proxima_notas and not proxima_fecha:
+            raise serializers.ValidationError({'proxima_reunion_fecha': 'Indique la fecha de la próxima reunión para registrar notas.'})
         return attrs
 
     def create(self, validated_data):
