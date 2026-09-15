@@ -15,7 +15,7 @@ describe('CommitteeManagement', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(CommitteeManagement);
     fixture.detectChanges();
-    http.expectOne('http://localhost:8000/api/v1/admin/committee/').flush([]);
+    http.expectOne('http://localhost:8000/api/v1/committees/').flush([]);
     http.expectOne('http://localhost:8000/api/v1/auth/users/').flush([{
       id: 2, email: 'tutor@example.com', first_name: 'Eva', last_name: 'Diaz', role: 'TUTOR', roles: ['TUTOR'], permissions: ['tutoring.create'],
     }]);

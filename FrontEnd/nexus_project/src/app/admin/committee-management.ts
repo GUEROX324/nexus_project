@@ -2,7 +2,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, finalize } from 'rxjs';
 import { AdminService } from './admin.service';
-import { AdminStudent, COMMITTEE_ROLE_LABELS, CommitteeAssignment } from './admin.models';
+import { AcademicCommittee, AdminStudent, COMMITTEE_ROLE_LABELS, CommitteeMembership, CommitteeRole } from './admin.models';
 import { AuthenticatedUser, ROLE_LABELS, UserRole } from '../core/auth/auth.models';
 
 @Component({
@@ -13,23 +13,20 @@ import { AuthenticatedUser, ROLE_LABELS, UserRole } from '../core/auth/auth.mode
 })
 export class CommitteeManagement {
   private readonly admin = inject(AdminService);
-  protected assignments: CommitteeAssignment[] = [];
+  protected committees: AcademicCommittee[] = [];
   protected users: AuthenticatedUser[] = [];
   protected students: AdminStudent[] = [];
-  protected form = { user: null as number | null, student: null as number | null, rol_comite: 'ASESOR_PRINCIPAL' as CommitteeAssignment['rol_comite'] };
+  protected form = { user: null as number | null, student: null as number | null, role: 'ASESOR' as CommitteeRole };
   protected loading = true;
   protected error = '';
 
-  constructor() {
-    this.loadData();
-  }
+  constructor() { this.loadData(); }
 
-  getRoleLabel(role: string): string {
-    return ROLE_LABELS[role as UserRole] || role;
-  }
-
-  getCommitteeRoleLabel(role: string): string {
-    return COMMITTEE_ROLE_LABELS[role] || role;
+  getRoleLabel(role: string): string { return ROLE_LABELS[role as UserRole] || role; }
+  getCommitteeRoleLabel(role: CommitteeRole): string { return COMMITTEE_ROLE_LABELS[role]; }
+  compatibleUsers(): AuthenticatedUser[] {
+    const role = this.form.role === 'COMMITTEE_MEMBER' ? 'COMMITTEE_MEMBER' : 'TUTOR';
+    return this.users.filter(user => user.role === role);
   }
 
   createAssignment(): void {
@@ -38,31 +35,26 @@ export class CommitteeManagement {
       this.error = 'Selecciona una cuenta y un estudiante.';
       return;
     }
-    this.admin.createCommitteeAssignment({ ...this.form, user: this.form.user, student: this.form.student }).subscribe({
-      next: (assignment) => this.assignments = [...this.assignments, assignment],
-      error: () => this.error = 'No fue posible crear la asociación. Verifica los identificadores y el rol de la cuenta.',
+    this.admin.createCommittee(this.form.student, this.form.user, this.form.role).subscribe({
+      next: (committee) => this.committees = [...this.committees.filter(item => item.id !== committee.id), committee],
+      error: (response) => this.error = response.error?.memberships?.[0]?.user?.[0] || response.error?.non_field_errors?.[0] || 'No fue posible asignar la membresía.',
     });
   }
 
-  toggle(assignment: CommitteeAssignment): void {
-    this.admin.setCommitteeAssignmentStatus(assignment.id, !assignment.is_active).subscribe({
-      next: (updated) => this.assignments = this.assignments.map((item) => item.id === updated.id ? updated : item),
-      error: () => this.error = 'No fue posible actualizar el estado de la asociación.',
+  remove(membership: CommitteeMembership): void {
+    this.admin.deleteCommitteeMembership(membership.id).subscribe({
+      next: () => this.committees = this.committees.map(committee => ({
+        ...committee, memberships: committee.memberships.filter(item => item.id !== membership.id),
+      })),
+      error: () => this.error = 'No fue posible eliminar la membresía.',
     });
   }
 
   private loadData(): void {
-    forkJoin({
-      assignments: this.admin.getCommitteeAssignments(),
-      users: this.admin.getUsers(),
-      students: this.admin.getStudents(),
-    }).pipe(finalize(() => this.loading = false)).subscribe({
-      next: ({ assignments, users, students }) => {
-        this.assignments = assignments;
-        this.users = users.filter((user) => user.role === 'TUTOR' || user.role === 'COMMITTEE_MEMBER');
-        this.students = students;
-      },
-      error: () => this.error = 'No fue posible cargar cuentas, estudiantes y asociaciones.',
-    });
+    forkJoin({ committees: this.admin.getCommittees(), users: this.admin.getUsers(), students: this.admin.getStudents() })
+      .pipe(finalize(() => this.loading = false)).subscribe({
+        next: ({ committees, users, students }) => { this.committees = committees; this.users = users; this.students = students; },
+        error: () => this.error = 'No fue posible cargar cuentas, estudiantes y comités.',
+      });
   }
 }

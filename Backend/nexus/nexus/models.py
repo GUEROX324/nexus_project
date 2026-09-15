@@ -84,10 +84,6 @@ class Student(models.Model):
 			models.UniqueConstraint(Lower('matricula'), name='unique_student_matricula_ci'),
 		]
 
-	@property
-	def committee_relationships(self):
-		return self.committee_members
-
 	def __str__(self):
 		return f'{self.matricula} - {self.nombre_completo}'
 
@@ -109,27 +105,27 @@ class Semester(models.Model):
 
 
 class AcademicCommittee(models.Model):
-	class Role(models.TextChoices):
-		PRINCIPAL_ADVISOR = 'ASESOR_PRINCIPAL', 'Asesor principal'
-		CO_ADVISOR = 'COASESOR', 'Coasesor'
-		COMMITTEE_MEMBER = 'MIEMBRO_COMITE', 'Miembro del comité'
+	student = models.OneToOneField(Student, on_delete=models.CASCADE, related_name='academic_committee')
 
-	student = models.ForeignKey(
-		Student,
-		on_delete=models.CASCADE,
-		related_name='committee_members',
-		related_query_name='committee_relationships',
-	)
-	user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='committee_assignments')
-	rol_comite = models.CharField(max_length=30, choices=Role.choices)
-	fecha_asignacion = models.DateField(default=timezone.now)
-	is_active = models.BooleanField(default=True)
-	created_at = models.DateTimeField(auto_now_add=True)
-	updated_at = models.DateTimeField(auto_now=True)
+
+class CommitteeMembership(models.Model):
+	class Role(models.TextChoices):
+		ADVISOR = 'ASESOR', 'Asesor'
+		CO_ADVISOR = 'COASESOR', 'Coasesor'
+		COMMITTEE_MEMBER = 'COMMITTEE_MEMBER', 'Miembro del comité'
+
+	committee = models.ForeignKey(AcademicCommittee, on_delete=models.CASCADE, related_name='memberships')
+	user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='committee_memberships')
+	role = models.CharField(max_length=30, choices=Role.choices)
 
 	class Meta:
 		constraints = [
-			models.UniqueConstraint(fields=['student', 'user', 'rol_comite'], name='unique_student_user_committee_role'),
+			models.UniqueConstraint(fields=['committee', 'user', 'role'], name='unique_committee_user_role'),
+			models.UniqueConstraint(
+				fields=['committee'],
+				condition=Q(role='COASESOR'),
+				name='unique_committee_coadvisor',
+			),
 		]
 
 
@@ -143,7 +139,7 @@ class AdminAuditLog(models.Model):
 	action = models.CharField(max_length=40, choices=Action.choices, db_index=True)
 	actor = models.ForeignKey(CustomUser, on_delete=models.PROTECT, related_name='admin_audit_actions')
 	target_user = models.ForeignKey(CustomUser, null=True, blank=True, on_delete=models.SET_NULL, related_name='admin_audit_targets')
-	committee_assignment = models.ForeignKey(AcademicCommittee, null=True, blank=True, on_delete=models.SET_NULL, related_name='admin_audit_logs')
+	committee_assignment = models.ForeignKey(CommitteeMembership, null=True, blank=True, on_delete=models.SET_NULL, related_name='admin_audit_logs')
 	details = models.JSONField(default=dict, blank=True)
 	created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 

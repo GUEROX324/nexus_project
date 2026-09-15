@@ -7,7 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.db import transaction
 from django.db.models import Q
 
-from .models import AcademicCommittee, AdminAuditLog, CustomUser, Semester, Student
+from .models import AcademicCommittee, CommitteeMembership, AdminAuditLog, CustomUser, Semester, Student
 from .permissions import (
     CanAssignRoles,
     CanCreateTutoring,
@@ -139,54 +139,42 @@ class CommitteeAssignmentListCreateView(APIView):
     permission_classes = [CanManageCommittee]
 
     def get(self, request):
-        assignments = AcademicCommittee.objects.select_related('user', 'student').order_by('student__matricula')
-        return Response(CommitteeAssignmentReadSerializer(assignments, many=True).data)
+        committees = AcademicCommittee.objects.select_related('student').prefetch_related('memberships__user').order_by('student__matricula')
+        return Response(CommitteeAssignmentReadSerializer(committees, many=True).data)
 
     @transaction.atomic
     def post(self, request):
-        serializer = CommitteeAssignmentSerializer(data=request.data)
+        serializer = CommitteeAssignmentReadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        assignment = serializer.save()
-        AdminAuditLog.objects.create(
-            action=AdminAuditLog.Action.COMMITTEE_ASSIGNED,
-            actor=request.user,
-            target_user=assignment.user,
-            committee_assignment=assignment,
-            details={'student_id': assignment.student_id, 'rol_comite': assignment.rol_comite},
-        )
-        return Response(CommitteeAssignmentReadSerializer(assignment).data, status=status.HTTP_201_CREATED)
+        committee = serializer.save()
+        for membership in committee.memberships.all():
+            AdminAuditLog.objects.create(
+                action=AdminAuditLog.Action.COMMITTEE_ASSIGNED,
+                actor=request.user,
+                target_user=membership.user,
+                committee_assignment=membership,
+                details={'student_id': committee.student_id, 'role': membership.role},
+            )
+        return Response(CommitteeAssignmentReadSerializer(committee).data, status=status.HTTP_201_CREATED)
 
 
 class AdminStudentListView(APIView):
     permission_classes = [CanManageCommittee]
 
     def get(self, request):
-        students = Student.objects.filter(estatus_activo=True).filter(
-            Q(user__isnull=True) | Q(user__role=CustomUser.Role.STUDENT)
-        ).order_by('matricula')
+        students = Student.objects.order_by('matricula')
         return Response(StudentRecordSerializer(students, many=True).data)
 
 class CommitteeAssignmentUpdateView(APIView):
     permission_classes = [CanManageCommittee]
 
     @transaction.atomic
-    def patch(self, request, assignment_id):
-        assignment = AcademicCommittee.objects.filter(pk=assignment_id).first()
-        if assignment is None:
-            return Response({'detail': 'Asociacion no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = CommitteeAssignmentSerializer(assignment, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        previous_status = assignment.is_active
-        assignment = serializer.save()
-        if previous_status != assignment.is_active:
-            AdminAuditLog.objects.create(
-                action=AdminAuditLog.Action.COMMITTEE_STATUS_CHANGED,
-                actor=request.user,
-                target_user=assignment.user,
-                committee_assignment=assignment,
-                details={'previous_is_active': previous_status, 'new_is_active': assignment.is_active},
-            )
-        return Response(CommitteeAssignmentReadSerializer(assignment).data)
+    def delete(self, request, assignment_id):
+        membership = CommitteeMembership.objects.filter(pk=assignment_id).first()
+        if membership is None:
+            return Response({'detail': 'Membresía no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        membership.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AdminAuditLogListView(APIView):
@@ -210,10 +198,9 @@ class StudentRecordView(APIView):
 
         permissions = permissions_for_user(request.user)
         is_owner = student.user_id == request.user.id
-        is_assigned = AcademicCommittee.objects.filter(
-            student=student,
+        is_assigned = CommitteeMembership.objects.filter(
+            committee__student=student,
             user=request.user,
-            is_active=True,
         ).exists()
         if not (is_owner and 'records.read.own' in permissions) and not (
             is_assigned and 'records.read.assigned' in permissions
@@ -246,8 +233,7 @@ class StudentViewSet(
             return Student.objects.all().order_by('id')
         elif 'records.read.assigned' in permissions:
             return Student.objects.filter(
-                committee_relationships__user=user,
-                committee_relationships__is_active=True,
+                academic_committee__memberships__user=user,
             ).distinct().order_by('id')
         elif 'records.read.own' in permissions:
             return Student.objects.filter(user=user).order_by('id')
@@ -271,11 +257,7 @@ class TutoringSessionCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         student = serializer.validated_data['student']
         user = request.user
-        is_assigned = AcademicCommittee.objects.filter(
-            student=student,
-            user=user,
-            is_active=True,
-        ).exists()
+        is_assigned = CommitteeMembership.objects.filter(committee__student=student, user=user).exists()
         if not is_assigned:
             return Response(
                 {'detail': 'No puede registrar tutorias para este estudiante.'},
@@ -307,7 +289,7 @@ class StudentSemesterListCreateView(APIView):
                 return None, Response({'detail': 'No tiene permisos para administrar semestres.'}, status=status.HTTP_403_FORBIDDEN)
         else:
             is_owner = student.user_id == request.user.id
-            is_assigned = AcademicCommittee.objects.filter(student=student, user=request.user, is_active=True).exists()
+            is_assigned = CommitteeMembership.objects.filter(committee__student=student, user=request.user).exists()
             can_read = 'academic.read.global' in user_perms or (is_owner and 'records.read.own' in user_perms) or (is_assigned and 'records.read.assigned' in user_perms)
             if not can_read:
                 return None, Response({'detail': 'No tiene permisos para consultar semestres de este estudiante.'}, status=status.HTTP_403_FORBIDDEN)

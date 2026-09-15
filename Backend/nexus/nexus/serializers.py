@@ -9,6 +9,7 @@ MATRICULA_REGEX_VALIDATOR = RegexValidator(r'^[a-zA-Z0-9-]{1,20}$', 'La matrícu
 
 from .models import (
     AcademicCommittee,
+    CommitteeMembership,
     AcademicEvent,
     AdminAuditLog,
     Agreement,
@@ -102,46 +103,41 @@ class InstitutionalUserCreateSerializer(serializers.Serializer):
         return CustomUser.objects.create_user(password=password, **validated_data)
 
 
-class CommitteeAssignmentSerializer(serializers.ModelSerializer):
+class CommitteeMembershipSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+
     class Meta:
-        model = AcademicCommittee
-        fields = ('user', 'student', 'rol_comite', 'fecha_asignacion', 'is_active')
+        model = CommitteeMembership
+        fields = ('id', 'user', 'user_email', 'role')
 
     def validate(self, attrs):
         user = attrs.get('user', self.instance.user if self.instance else None)
-        student = attrs.get('student', self.instance.student if self.instance else None)
-        if user and user.role not in (
-            CustomUser.Role.TUTOR,
-            CustomUser.Role.COMMITTEE_MEMBER,
-        ):
-            raise serializers.ValidationError({'user': 'La cuenta asignada debe tener rol de tutor o miembro del comité.'})
-        if student and student.user and student.user.role != CustomUser.Role.STUDENT:
-            raise serializers.ValidationError({'student': 'El estudiante seleccionado debe tener exclusivamente rol de estudiante.'})
-        if student and student.user_id and user and student.user_id == user.id:
-            raise serializers.ValidationError({'user': 'Un estudiante no puede pertenecer a su propio comité.'})
+        role = attrs.get('role', self.instance.role if self.instance else None)
+        required_role = CustomUser.Role.COMMITTEE_MEMBER if role == CommitteeMembership.Role.COMMITTEE_MEMBER else CustomUser.Role.TUTOR
+        if user and user.role != required_role:
+            raise serializers.ValidationError({'user': f'La cuenta debe tener el rol institucional {required_role}.'})
         return attrs
 
 
-class CommitteeAssignmentReadSerializer(serializers.ModelSerializer):
-    user_email = serializers.EmailField(source='user.email', read_only=True)
+class AcademicCommitteeSerializer(serializers.ModelSerializer):
+    student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
     student_name = serializers.CharField(source='student.nombre_completo', read_only=True)
-    fecha_asignacion = serializers.SerializerMethodField()
+    memberships = CommitteeMembershipSerializer(many=True)
 
     class Meta:
         model = AcademicCommittee
-        fields = (
-            'id',
-            'user',
-            'user_email',
-            'student',
-            'student_name',
-            'rol_comite',
-            'fecha_asignacion',
-            'is_active',
-        )
+        fields = ('id', 'student', 'student_name', 'memberships')
 
-    def get_fecha_asignacion(self, assignment):
-        return assignment.fecha_asignacion.date().isoformat() if hasattr(assignment.fecha_asignacion, 'date') else assignment.fecha_asignacion
+    def create(self, validated_data):
+        memberships = validated_data.pop('memberships', [])
+        committee, _ = AcademicCommittee.objects.get_or_create(**validated_data)
+        for membership in memberships:
+            CommitteeMembership.objects.create(committee=committee, **membership)
+        return committee
+
+
+CommitteeAssignmentSerializer = CommitteeMembershipSerializer
+CommitteeAssignmentReadSerializer = AcademicCommitteeSerializer
 
 
 class AdminAuditLogSerializer(serializers.ModelSerializer):
@@ -209,15 +205,10 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
         return SemesterSerializer(student.semesters.all().order_by('numero'), many=True).data
 
     def get_advisors(self, student):
-        principal = student.committee_members.filter(
-            rol_comite=AcademicCommittee.Role.PRINCIPAL_ADVISOR, is_active=True
-        ).select_related('user').first()
-        coadvisor = student.committee_members.filter(
-            rol_comite=AcademicCommittee.Role.CO_ADVISOR, is_active=True
-        ).select_related('user').first()
-        others = student.committee_members.filter(is_active=True).exclude(
-            rol_comite__in=[AcademicCommittee.Role.PRINCIPAL_ADVISOR, AcademicCommittee.Role.CO_ADVISOR]
-        ).select_related('user')
+        memberships = CommitteeMembership.objects.filter(committee__student=student).select_related('user')
+        principal = memberships.filter(role=CommitteeMembership.Role.ADVISOR).first()
+        coadvisor = memberships.filter(role=CommitteeMembership.Role.CO_ADVISOR).first()
+        others = memberships.filter(role=CommitteeMembership.Role.COMMITTEE_MEMBER)
 
         def _fmt(member):
             if not member:
@@ -226,7 +217,7 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
                 'id': member.user.id,
                 'nombre_completo': f"{member.user.first_name} {member.user.last_name}".strip() or member.user.email,
                 'email': member.user.email,
-                'rol_comite': member.rol_comite,
+                'rol_comite': member.role,
             }
 
         return {

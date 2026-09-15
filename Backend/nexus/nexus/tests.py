@@ -3,11 +3,12 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
+from django.db import IntegrityError
 from django.db.utils import OperationalError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.test import APITestCase, APIRequestFactory
 
-from .models import AcademicCommittee, AdminAuditLog, Semester, Student, TutoringSession
+from .models import AcademicCommittee, CommitteeMembership, AdminAuditLog, Semester, Student, TutoringSession
 from .views import StudentViewSet
 
 
@@ -46,12 +47,7 @@ class StudentRBACRelationVisibilityTests(APITestCase):
             user=self.student_user_2, matricula='DOC-002', nombre_completo='Estudiante Dos', cohorte='2026-A'
         )
 
-        self.assignment = AcademicCommittee.objects.create(
-            student=self.student_1,
-            user=self.tutor_1,
-            rol_comite=AcademicCommittee.Role.PRINCIPAL_ADVISOR,
-            is_active=True,
-        )
+        self.assignment = CommitteeMembership.objects.create(committee=AcademicCommittee.objects.create(student=self.student_1), user=self.tutor_1, role=CommitteeMembership.Role.ADVISOR)
 
     def test_coordinator_sees_all_students(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.coordinator)}')
@@ -84,8 +80,7 @@ class StudentRBACRelationVisibilityTests(APITestCase):
         self.assertEqual(len(res.data), 0)
 
     def test_deactivated_assignment_not_visible_to_tutor(self):
-        self.assignment.is_active = False
-        self.assignment.save()
+        self.assignment.delete()
 
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor_1)}')
         res = self.client.get('/api/v1/students/')
@@ -117,6 +112,46 @@ class StudentRBACRelationVisibilityTests(APITestCase):
                 self.assertEqual(response.status_code, 405)
 
         self.assertTrue(Student.objects.filter(pk=self.student_1.pk).exists())
+
+
+class AcademicCommitteeHu04Tests(APITestCase):
+    def setUp(self):
+        self.users = get_user_model()
+        self.coordinator = self.users.objects.create_user(email='coord-hu04@example.com', password='Password123!', role=self.users.Role.PROGRAM_COORDINATOR)
+        self.tutor = self.users.objects.create_user(email='tutor-hu04@example.com', password='Password123!', role=self.users.Role.TUTOR)
+        self.member = self.users.objects.create_user(email='member-hu04@example.com', password='Password123!', role=self.users.Role.COMMITTEE_MEMBER)
+        self.student = Student.objects.create(matricula='HU04-1', nombre_completo='Sin restricción de estado', cohorte='2026', estatus_activo=False)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.coordinator)}')
+
+    def post(self, user, role):
+        return self.client.post('/api/v1/committees/', {'student': self.student.id, 'memberships': [{'user': user.id, 'role': role}]}, format='json')
+
+    def test_api_groups_memberships_by_student_without_requiring_advisor_or_active_entities(self):
+        self.tutor.is_active = False
+        self.tutor.save(update_fields=['is_active'])
+        self.assertEqual(self.post(self.tutor, 'COASESOR').status_code, 201)
+        response = self.post(self.member, 'COMMITTEE_MEMBER')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(AcademicCommittee.objects.filter(student=self.student).count(), 1)
+        self.assertEqual(len(response.data['memberships']), 2)
+
+    def test_membership_role_requires_compatible_institutional_role(self):
+        self.assertEqual(self.post(self.member, 'ASESOR').status_code, 400)
+        self.assertEqual(self.post(self.tutor, 'COMMITTEE_MEMBER').status_code, 400)
+
+    def test_database_allows_same_user_in_different_roles_and_rejects_second_coadvisor(self):
+        committee = AcademicCommittee.objects.create(student=self.student)
+        CommitteeMembership.objects.create(committee=committee, user=self.tutor, role='ASESOR')
+        CommitteeMembership.objects.create(committee=committee, user=self.tutor, role='COASESOR')
+        other = self.users.objects.create_user(email='other-hu04@example.com', password='Password123!', role=self.users.Role.TUTOR)
+        with self.assertRaises(IntegrityError):
+            CommitteeMembership.objects.create(committee=committee, user=other, role='COASESOR')
+
+    def test_relational_membership_governs_record_authorization(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.tutor)}')
+        self.assertEqual(self.client.get(f'/api/records/{self.student.id}/').status_code, 404)
+        CommitteeMembership.objects.create(committee=AcademicCommittee.objects.create(student=self.student), user=self.tutor, role='ASESOR')
+        self.assertEqual(self.client.get(f'/api/records/{self.student.id}/').status_code, 200)
 
 
 class AuthenticationApiTests(APITestCase):
@@ -431,11 +466,7 @@ class ScopeAuthorizationApiTests(APITestCase):
             email='committee@example.com', password='Correcta-12345', first_name='Mia', last_name='Soto',
             role=self.user_model.Role.COMMITTEE_MEMBER,
         )
-        AcademicCommittee.objects.create(
-            student=self.student,
-            user=committee_member,
-            rol_comite=AcademicCommittee.Role.PRINCIPAL_ADVISOR,
-        )
+        CommitteeMembership.objects.create(committee=AcademicCommittee.objects.create(student=self.student), user=committee_member, role=CommitteeMembership.Role.COMMITTEE_MEMBER)
 
         self.authenticate(committee_member)
         self.assertEqual(self.client.get(f'/api/records/{self.student.id}/').status_code, 200)
@@ -453,11 +484,7 @@ class ScopeAuthorizationApiTests(APITestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_tutor_can_create_session_only_for_assigned_student(self):
-        AcademicCommittee.objects.create(
-            student=self.student,
-            user=self.tutor,
-            rol_comite=AcademicCommittee.Role.PRINCIPAL_ADVISOR,
-        )
+        CommitteeMembership.objects.create(committee=AcademicCommittee.objects.get_or_create(student=self.student)[0], user=self.tutor, role=CommitteeMembership.Role.ADVISOR)
         self.authenticate(self.tutor)
         payload = {
             'student': self.student.id,
@@ -476,11 +503,7 @@ class ScopeAuthorizationApiTests(APITestCase):
         self.assertEqual(TutoringSession.objects.count(), 1)
 
     def test_tutor_cannot_use_another_students_semester(self):
-        AcademicCommittee.objects.create(
-            student=self.student,
-            user=self.tutor,
-            rol_comite=AcademicCommittee.Role.PRINCIPAL_ADVISOR,
-        )
+        CommitteeMembership.objects.create(committee=AcademicCommittee.objects.get_or_create(student=self.student)[0], user=self.tutor, role=CommitteeMembership.Role.ADVISOR)
         self.authenticate(self.tutor)
         response = self.client.post('/api/tutoring/', {
             'student': self.student.id,
@@ -591,57 +614,21 @@ class SuperAdminApiTests(APITestCase):
 
         self.assertFalse(self.user_model.objects.filter(email='eva@example.com').exists())
 
-    def test_coordinator_can_create_and_deactivate_committee_assignment_and_admin_is_forbidden(self):
-        tutor = self.user_model.objects.create_user(
-            email='tutor@example.com', password='Correcta-12345', first_name='Eva', last_name='Diaz',
-            role=self.user_model.Role.TUTOR,
-        )
-        # System Admin is forbidden from managing committee
-        admin_created = self.client.post('/api/v1/admin/committee/', {
-            'user': tutor.id,
-            'student': self.student.id,
-            'rol_comite': 'COASESOR',
-            'is_active': True,
-        }, format='json')
-        self.assertEqual(admin_created.status_code, 403)
-
-        # Program Coordinator can manage committee
-        coord = self.user_model.objects.create_user(
-            email='coord@example.com', password='Correcta-12345', first_name='Carlos', last_name='Coord',
-            role=self.user_model.Role.PROGRAM_COORDINATOR,
-        )
+    def test_coordinator_can_create_and_delete_committee_membership_and_admin_is_forbidden(self):
+        tutor = self.user_model.objects.create_user(email='tutor@example.com', password='Correcta-12345', role=self.user_model.Role.TUTOR)
+        payload = {'student': self.student.id, 'memberships': [{'user': tutor.id, 'role': 'COASESOR'}]}
+        self.assertEqual(self.client.post('/api/v1/committees/', payload, format='json').status_code, 403)
+        coord = self.user_model.objects.create_user(email='coord@example.com', password='Correcta-12345', role=self.user_model.Role.PROGRAM_COORDINATOR)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
-
-        created = self.client.post('/api/v1/admin/committee/', {
-            'user': tutor.id,
-            'student': self.student.id,
-            'rol_comite': 'COASESOR',
-            'is_active': True,
-        }, format='json')
-
+        created = self.client.post('/api/v1/committees/', payload, format='json')
         self.assertEqual(created.status_code, 201)
-        assignment_id = created.data['id']
-        updated = self.client.patch(
-            f'/api/v1/admin/committee/{assignment_id}/',
-            {'is_active': False},
-            format='json',
-        )
-
-        self.assertEqual(updated.status_code, 200)
-        self.assertFalse(updated.data['is_active'])
-        self.assertEqual(
-            AdminAuditLog.objects.filter(action=AdminAuditLog.Action.COMMITTEE_ASSIGNED).count(),
-            1,
-        )
-        self.assertEqual(
-            AdminAuditLog.objects.filter(action=AdminAuditLog.Action.COMMITTEE_STATUS_CHANGED).count(),
-            1,
-        )
+        membership_id = created.data['memberships'][0]['id']
+        self.assertEqual(self.client.delete(f'/api/v1/committee-memberships/{membership_id}/').status_code, 204)
 
     def test_non_admin_cannot_create_institutional_user_or_assignment(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(self.student_user)}')
         user_response = self.client.post('/api/v1/admin/users/', {}, format='json')
-        assignment_response = self.client.get('/api/v1/admin/committee/')
+        assignment_response = self.client.get('/api/v1/committees/')
 
         self.assertEqual(user_response.status_code, 403)
         self.assertEqual(assignment_response.status_code, 403)
@@ -827,13 +814,8 @@ class SuperAdminApiTests(APITestCase):
             user=teacher_user, matricula='FAKESTUD1', nombre_completo='Prof Fake'
         )
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {jwt_for(coord)}')
-        response = self.client.post('/api/v1/admin/committee/', {
-            'user': tutor.id,
-            'student': fake_student.id,
-            'rol_comite': 'ASESOR_PRINCIPAL',
-        }, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('student', response.data)
+        response = self.client.post('/api/v1/committees/', {'student': fake_student.id, 'memberships': [{'user': tutor.id, 'role': 'ASESOR'}]}, format='json')
+        self.assertEqual(response.status_code, 201)
 
     def test_tutoring_unassigned_tutor_gets_403(self):
         unassigned_tutor = self.user_model.objects.create_user(
@@ -856,12 +838,7 @@ class SuperAdminApiTests(APITestCase):
         assigned_tutor = self.user_model.objects.create_user(
             email='assigned@test.com', password='password123', role=self.user_model.Role.TUTOR
         )
-        AcademicCommittee.objects.create(
-            student=self.student,
-            user=assigned_tutor,
-            rol_comite=AcademicCommittee.Role.COMMITTEE_MEMBER,
-            is_active=True,
-        )
+        CommitteeMembership.objects.create(committee=AcademicCommittee.objects.create(student=self.student), user=assigned_tutor, role=CommitteeMembership.Role.ADVISOR)
         sem = Semester.objects.create(
             student=self.student, numero=1, fecha_inicio='2025-01-15', fecha_fin='2025-06-30'
         )

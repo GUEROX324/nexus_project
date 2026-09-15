@@ -13,21 +13,26 @@ export interface InstitutionalUserCreate {
   grammatical_gender?: GrammaticalGender;
 }
 
-export interface CommitteeAssignment {
+export type CommitteeRole = 'ASESOR' | 'COASESOR' | 'COMMITTEE_MEMBER';
+
+export interface CommitteeMembership {
   id: number;
   user: number;
   user_email: string;
-  student: number;
-  student_name: string;
-  rol_comite: 'ASESOR_PRINCIPAL' | 'COASESOR' | 'MIEMBRO_COMITE';
-  fecha_asignacion: string;
-  is_active: boolean;
+  role: CommitteeRole;
 }
 
-export const COMMITTEE_ROLE_LABELS: Record<string, string> = {
-  ASESOR_PRINCIPAL: 'Asesor principal',
+export interface AcademicCommittee {
+  id: number;
+  student: number;
+  student_name: string;
+  memberships: CommitteeMembership[];
+}
+
+export const COMMITTEE_ROLE_LABELS: Record<CommitteeRole, string> = {
+  ASESOR: 'Asesor',
   COASESOR: 'Coasesor',
-  MIEMBRO_COMITE: 'Miembro del comité',
+  COMMITTEE_MEMBER: 'Miembro del comité',
 };
 
 export type AdminStudent = StudentRecord;

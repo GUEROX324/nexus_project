@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthenticatedUser } from '../core/auth/auth.models';
-import { AdminAuditLog, AdminStudent, CommitteeAssignment, InstitutionalUserCreate } from './admin.models';
+import { AcademicCommittee, AdminAuditLog, AdminStudent, CommitteeMembership, CommitteeRole, InstitutionalUserCreate } from './admin.models';
 
 const API = `${environment.apiUrl}/v1`;
 
@@ -23,16 +23,16 @@ export class AdminService {
     return this.http.get<AdminStudent[]>(`${API}/admin/students/`);
   }
 
-  getCommitteeAssignments(): Observable<CommitteeAssignment[]> {
-    return this.http.get<CommitteeAssignment[]>(`${API}/admin/committee/`);
+  getCommittees(): Observable<AcademicCommittee[]> {
+    return this.http.get<AcademicCommittee[]>(`${API}/committees/`);
   }
 
-  createCommitteeAssignment(data: Pick<CommitteeAssignment, 'user' | 'student' | 'rol_comite'>): Observable<CommitteeAssignment> {
-    return this.http.post<CommitteeAssignment>(`${API}/admin/committee/`, data);
+  createCommittee(student: number, user: number, role: CommitteeRole): Observable<AcademicCommittee> {
+    return this.http.post<AcademicCommittee>(`${API}/committees/`, { student, memberships: [{ user, role }] });
   }
 
-  setCommitteeAssignmentStatus(id: number, is_active: boolean): Observable<CommitteeAssignment> {
-    return this.http.patch<CommitteeAssignment>(`${API}/admin/committee/${id}/`, { is_active });
+  deleteCommitteeMembership(id: number): Observable<void> {
+    return this.http.delete<void>(`${API}/committee-memberships/${id}/`);
   }
 
   getAuditLogs(): Observable<AdminAuditLog[]> {

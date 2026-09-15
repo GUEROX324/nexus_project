@@ -8,6 +8,7 @@ from nexus.models import (
     Student,
     Semester,
     AcademicCommittee,
+    CommitteeMembership,
     AdminAuditLog,
     TutoringSession,
     TutoringParticipant,
@@ -204,26 +205,15 @@ def populate():
             # -----------------------------------------------------------------
             # 4. COMITÉ ACADÉMICO (AcademicCommittee)
             # -----------------------------------------------------------------
-            # Asesor Principal
-            ac1, _ = AcademicCommittee.objects.update_or_create(
-                student=student,
-                user=sdata["tutor"],
-                rol_comite=AcademicCommittee.Role.PRINCIPAL_ADVISOR,
-                defaults={"fecha_asignacion": today - datetime.timedelta(days=14), "is_active": True},
+            committee, _ = AcademicCommittee.objects.get_or_create(student=student)
+            ac1, _ = CommitteeMembership.objects.get_or_create(
+                committee=committee, user=sdata["tutor"], role=CommitteeMembership.Role.ADVISOR,
             )
-            # Coasesor
-            ac2, _ = AcademicCommittee.objects.update_or_create(
-                student=student,
-                user=sdata["coadvisor"],
-                rol_comite=AcademicCommittee.Role.CO_ADVISOR,
-                defaults={"fecha_asignacion": today - datetime.timedelta(days=14), "is_active": True},
+            CommitteeMembership.objects.get_or_create(
+                committee=committee, user=sdata["coadvisor"], role=CommitteeMembership.Role.CO_ADVISOR,
             )
-            # Miembro del Comité
-            ac3, _ = AcademicCommittee.objects.update_or_create(
-                student=student,
-                user=vocal1,
-                rol_comite=AcademicCommittee.Role.COMMITTEE_MEMBER,
-                defaults={"fecha_asignacion": today - datetime.timedelta(days=14), "is_active": True},
+            CommitteeMembership.objects.get_or_create(
+                committee=committee, user=vocal1, role=CommitteeMembership.Role.COMMITTEE_MEMBER,
             )
 
             # -----------------------------------------------------------------
@@ -237,7 +227,7 @@ def populate():
                 defaults={
                     "details": {
                         "student_matricula": student.matricula,
-                        "rol_comite": AcademicCommittee.Role.PRINCIPAL_ADVISOR,
+                        "role": CommitteeMembership.Role.ADVISOR,
                         "timestamp": (now - datetime.timedelta(days=14)).isoformat(),
                     }
                 },
