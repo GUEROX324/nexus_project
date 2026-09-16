@@ -182,6 +182,35 @@ class AuthenticationApiTests(APITestCase):
         self.assertEqual(response.data['user']['grammatical_gender'], 'UNSPECIFIED')
         self.assertNotIn('password', response.data['user'])
 
+    def test_login_and_me_expose_student_profile_id_separately_from_user_id(self):
+        Student.objects.create(
+            matricula='UNLINKED-RECORD-01',
+            nombre_completo='Expediente sin cuenta',
+            cohorte='2026',
+        )
+        student = Student.objects.create(
+            user=self.user,
+            matricula='AUTH-STUDENT-01',
+            nombre_completo='Ana Lopez',
+            cohorte='2026',
+        )
+        self.assertNotEqual(self.user.id, student.id)
+
+        login = self.client.post(
+            '/api/v1/auth/login/',
+            {'email': self.user.email, 'password': self.password},
+            format='json',
+        )
+        self.assertEqual(login.status_code, 200)
+        self.assertEqual(login.data['user']['id'], self.user.id)
+        self.assertEqual(login.data['user']['student_id'], student.id)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {login.data["access"]}')
+        me = self.client.get('/api/v1/auth/me/')
+        self.assertEqual(me.status_code, 200)
+        self.assertEqual(me.data['id'], self.user.id)
+        self.assertEqual(me.data['student_id'], student.id)
+
     def test_seed_account_uses_real_password_hash_and_rejects_former_master_password(self):
         call_command('populate_data', verbosity=0)
         seeded_user = self.user_model.objects.get(email='admin@nexus.com')

@@ -8,6 +8,7 @@ export interface AuthenticatedUser {
   role: UserRole;
   roles: UserRole[];
   permissions: Permission[];
+  student_id?: number | null;
   grammatical_gender?: GrammaticalGender;
 }
 
