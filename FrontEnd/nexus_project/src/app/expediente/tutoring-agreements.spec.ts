@@ -5,7 +5,7 @@ import { TutoringAgreementsComponent } from './tutoring-agreements';
 import { AcademicService } from '../core/academic/academic.service';
 import { AuthService } from '../core/auth/auth.service';
 
-describe('TutoringAgreementsComponent (HU-11)', () => {
+describe('TutoringAgreementsComponent (HU-11 / HU-12)', () => {
   let fixture: ComponentFixture<TutoringAgreementsComponent>;
   let component: TutoringAgreementsComponent;
 
@@ -49,8 +49,8 @@ describe('TutoringAgreementsComponent (HU-11)', () => {
         student: 4,
         session: 12,
         descripcion: 'Nueva tarea de seguimiento académico.',
-        responsable: 2,
-        responsable_nombre: 'Roberto Gómez',
+        responsable: 4,
+        responsable_nombre: 'Ana Morales',
         fecha_limite: '2026-10-15',
         estado: 'PENDIENTE' as const,
         is_vencido: false,
@@ -84,27 +84,47 @@ describe('TutoringAgreementsComponent (HU-11)', () => {
     component = fixture.componentInstance;
     fixture.componentRef.setInput('studentId', 4);
     fixture.componentRef.setInput('preferredSessionId', 12);
+    fixture.componentRef.setInput('responsibleOptions', [
+      { id: 4, nombre_completo: 'Ana Morales', etiqueta: 'Estudiante' },
+      { id: 2, nombre_completo: 'Roberto Gómez', etiqueta: 'Asesor' },
+    ]);
     fixture.detectChanges();
   });
 
-  it('lista acuerdos de la tutoría (HU-11)', () => {
+  it('lista acuerdos con responsable y fecha (HU-11/12)', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent || '';
     expect(academicStub.getSessionAgreements).toHaveBeenCalledWith(12);
     expect(text).toContain('Entregar capítulo 3 preliminar completo.');
     expect(text).toContain('PENDIENTE');
+    expect(text).toContain('Roberto Gómez');
+    expect(text).toContain('2026-09-30');
   });
 
-  it('crea acuerdo asociado a la tutoría (HU-11)', () => {
+  it('crea acuerdo con responsable y fecha explícitos (HU-12)', () => {
     academicStub.createSessionAgreement.calls.reset();
     component['form'].setValue({
       descripcion: 'Nueva tarea de seguimiento académico.',
+      responsable: 4,
+      fecha_limite: '2026-10-15',
     });
     component['submit']();
     expect(academicStub.createSessionAgreement).toHaveBeenCalled();
     const [sessionId, payload] = academicStub.createSessionAgreement.calls.mostRecent().args;
     expect(sessionId).toBe(12);
     expect(payload.descripcion).toBe('Nueva tarea de seguimiento académico.');
-    expect(payload.responsable).toBe(2);
-    expect(payload.fecha_limite).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(payload.responsable).toBe(4);
+    expect(payload.fecha_limite).toBe('2026-10-15');
+  });
+
+  it('rechaza fecha límite anterior a la tutoría (HU-12)', () => {
+    academicStub.createSessionAgreement.calls.reset();
+    component['form'].setValue({
+      descripcion: 'Nueva tarea de seguimiento académico.',
+      responsable: 2,
+      fecha_limite: '2026-09-01',
+    });
+    component['submit']();
+    expect(academicStub.createSessionAgreement).not.toHaveBeenCalled();
+    expect(component['error']).toContain('fecha límite');
   });
 });

@@ -7,7 +7,7 @@ import { StudentOverview } from '../core/academic/academic.models';
 import { AuthService } from '../core/auth/auth.service';
 import { SemesterFormComponent } from './semester-form';
 import { TutoringFormComponent } from './tutoring-form';
-import { TutoringAgreementsComponent } from './tutoring-agreements';
+import { TutoringAgreementsComponent, ResponsibleOption } from './tutoring-agreements';
 import { EvidenceUploadComponent } from './evidence-upload';
 
 @Component({
@@ -47,6 +47,28 @@ export class StudentOverviewComponent implements OnInit {
           ? 'No cuenta con autorización para consultar este expediente.'
           : 'Error al cargar el expediente del estudiante.',
     });
+  }
+
+  /** Personas asociadas al seguimiento (estudiante + comité) para HU-12. */
+  protected responsibleOptions(): ResponsibleOption[] {
+    const overview = this.overview;
+    if (!overview) return [];
+    const options: ResponsibleOption[] = [];
+    const seen = new Set<number>();
+
+    const push = (id: number | null | undefined, nombre: string, etiqueta: string) => {
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      options.push({ id, nombre_completo: nombre, etiqueta });
+    };
+
+    push(overview.student.user_id, overview.student.nombre_completo || overview.nombre_completo, 'Estudiante');
+    push(overview.advisors.advisor?.id, overview.advisors.advisor?.nombre_completo ?? '', 'Asesor');
+    push(overview.advisors.coadvisor?.id, overview.advisors.coadvisor?.nombre_completo ?? '', 'Coasesor');
+    for (const member of overview.advisors.members ?? []) {
+      push(member.id, member.nombre_completo, member.rol_comite || 'Comité');
+    }
+    return options;
   }
 
   semestreGuardado(): void { this.mostrarFormSemestre = false; this.cargarExpediente(); }

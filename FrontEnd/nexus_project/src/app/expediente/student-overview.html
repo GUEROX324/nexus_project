@@ -241,6 +241,7 @@
           <app-tutoring-agreements
             [studentId]="studentId"
             [preferredSessionId]="overview.last_tutoring?.id ?? null"
+            [responsibleOptions]="responsibleOptions()"
             (changed)="cargarExpediente()"
           />
         </article>

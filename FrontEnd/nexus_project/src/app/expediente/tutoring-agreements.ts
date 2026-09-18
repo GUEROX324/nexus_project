@@ -6,7 +6,14 @@ import { AcademicService } from '../core/academic/academic.service';
 import { Agreement, TutoringSession } from '../core/academic/academic.models';
 import { AuthService } from '../core/auth/auth.service';
 
-/** HU-11: crear y listar acuerdos asociados a una tutoría (solo descripción en UI). */
+/** Candidato a responsable: usuario asociado al seguimiento del estudiante (HU-12). */
+export interface ResponsibleOption {
+  id: number;
+  nombre_completo: string;
+  etiqueta: string;
+}
+
+/** HU-11 + HU-12: crear acuerdos con descripción, responsable y fecha límite. */
 @Component({
   selector: 'app-tutoring-agreements',
   imports: [CommonModule, ReactiveFormsModule],
@@ -16,6 +23,7 @@ import { AuthService } from '../core/auth/auth.service';
 export class TutoringAgreementsComponent implements OnChanges {
   @Input({ required: true }) studentId!: number;
   @Input() preferredSessionId: number | null = null;
+  @Input() responsibleOptions: ResponsibleOption[] = [];
   @Output() changed = new EventEmitter<void>();
 
   private readonly academic = inject(AcademicService);
@@ -32,11 +40,16 @@ export class TutoringAgreementsComponent implements OnChanges {
 
   protected readonly form = this.fb.nonNullable.group({
     descripcion: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(1000)]],
+    responsable: [0 as number, [Validators.required, Validators.min(1)]],
+    fecha_limite: ['', [Validators.required]],
   });
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['studentId'] || changes['preferredSessionId']) {
       this.cargarSesiones();
+    }
+    if (changes['responsibleOptions']) {
+      this.ensureDefaultResponsable();
     }
   }
 
@@ -44,11 +57,17 @@ export class TutoringAgreementsComponent implements OnChanges {
     return this.auth.hasPermission('tutoring.create');
   }
 
+  protected minFechaLimite(): string {
+    const session = this.sessions.find((s) => s.id === this.selectedSessionId);
+    return session?.fecha_sesion ?? '';
+  }
+
   protected onSessionChange(raw: string): void {
     const id = Number(raw);
     this.selectedSessionId = Number.isInteger(id) && id > 0 ? id : null;
     this.exito = '';
     this.error = '';
+    this.syncFechaMinima();
     this.cargarAcuerdos();
   }
 
@@ -57,26 +76,32 @@ export class TutoringAgreementsComponent implements OnChanges {
       this.form.markAllAsTouched();
       return;
     }
-    const userId = this.auth.user()?.id;
-    if (!userId) {
-      this.error = 'No hay usuario autenticado para registrar el acuerdo.';
+
+    const fecha = this.form.controls.fecha_limite.value;
+    const min = this.minFechaLimite();
+    if (min && fecha < min) {
+      this.error = 'La fecha límite no puede ser anterior a la tutoría.';
       return;
     }
 
     this.guardando = true;
     this.error = '';
     this.exito = '';
-    // HU-11: la UI solo pide descripción. responsable/fecha van por defecto (HU-12 los hará explícitos).
     this.academic
       .createSessionAgreement(this.selectedSessionId, {
         descripcion: this.form.controls.descripcion.value.trim(),
-        responsable: userId,
-        fecha_limite: this.defaultFechaLimite(),
+        responsable: this.form.controls.responsable.value,
+        fecha_limite: fecha,
       })
       .pipe(finalize(() => (this.guardando = false)))
       .subscribe({
         next: () => {
-          this.form.reset({ descripcion: '' });
+          const responsable = this.form.controls.responsable.value;
+          this.form.reset({
+            descripcion: '',
+            responsable,
+            fecha_limite: this.defaultFechaLimite(),
+          });
           this.exito = 'Acuerdo registrado correctamente.';
           this.cargarAcuerdos();
           this.changed.emit();
@@ -84,6 +109,8 @@ export class TutoringAgreementsComponent implements OnChanges {
         error: (err) => {
           this.error =
             err.error?.descripcion?.[0] ||
+            err.error?.responsable?.[0] ||
+            err.error?.fecha_limite?.[0] ||
             err.error?.detail ||
             'No fue posible registrar el acuerdo.';
         },
@@ -91,9 +118,29 @@ export class TutoringAgreementsComponent implements OnChanges {
   }
 
   private defaultFechaLimite(): string {
+    const min = this.minFechaLimite();
     const d = new Date();
     d.setDate(d.getDate() + 14);
-    return d.toISOString().slice(0, 10);
+    const candidate = d.toISOString().slice(0, 10);
+    return min && candidate < min ? min : candidate;
+  }
+
+  private ensureDefaultResponsable(): void {
+    const current = this.form.controls.responsable.value;
+    const options = this.responsibleOptions;
+    if (!options.length) return;
+    if (current && options.some((o) => o.id === current)) return;
+    const me = this.auth.user()?.id;
+    const preferred = (me && options.find((o) => o.id === me)) || options[0];
+    this.form.controls.responsable.setValue(preferred.id);
+  }
+
+  private syncFechaMinima(): void {
+    const current = this.form.controls.fecha_limite.value;
+    const next = this.defaultFechaLimite();
+    if (!current || (this.minFechaLimite() && current < this.minFechaLimite())) {
+      this.form.controls.fecha_limite.setValue(next);
+    }
   }
 
   private cargarSesiones(): void {
@@ -111,6 +158,8 @@ export class TutoringAgreementsComponent implements OnChanges {
           const preferred = this.preferredSessionId;
           const exists = preferred != null && this.sessions.some((s) => s.id === preferred);
           this.selectedSessionId = exists ? preferred : this.sessions[0]?.id ?? null;
+          this.ensureDefaultResponsable();
+          this.syncFechaMinima();
           this.cargarAcuerdos();
         },
         error: () => {

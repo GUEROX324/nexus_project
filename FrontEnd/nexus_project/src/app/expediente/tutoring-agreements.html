@@ -30,7 +30,31 @@
           Descripción del acuerdo
           <textarea formControlName="descripcion" rows="3" maxlength="1000"></textarea>
         </label>
-        <button type="submit" [disabled]="guardando || form.invalid">
+
+        <div class="form-row">
+          <label>
+            Responsable
+            <select formControlName="responsable">
+              @if (responsibleOptions.length === 0) {
+                <option [ngValue]="0" disabled>Sin personas asociadas al seguimiento</option>
+              }
+              @for (opt of responsibleOptions; track opt.id) {
+                <option [ngValue]="opt.id">{{ opt.nombre_completo }} ({{ opt.etiqueta }})</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Fecha límite
+            <input
+              type="date"
+              formControlName="fecha_limite"
+              [attr.min]="minFechaLimite() || null"
+            />
+          </label>
+        </div>
+
+        <button type="submit" [disabled]="guardando || form.invalid || responsibleOptions.length === 0">
           {{ guardando ? 'Guardando...' : 'Crear acuerdo' }}
         </button>
       </form>
@@ -52,6 +76,10 @@
             <div class="agr-top">
               <p class="agr-desc">{{ a.descripcion }}</p>
               <span class="badge">{{ a.estado }}</span>
+            </div>
+            <div class="agr-meta">
+              <span>Responsable: {{ a.responsable_nombre }}</span>
+              <span>Fecha límite: {{ a.fecha_limite }}</span>
             </div>
           </li>
         }

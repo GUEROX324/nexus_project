@@ -51,6 +51,7 @@ export interface StudentOverview {
   estatus_activo: boolean;
   student: {
     id: number;
+    user_id: number | null;
     matricula: string;
     nombre_completo: string;
     programa_doctoral: string;

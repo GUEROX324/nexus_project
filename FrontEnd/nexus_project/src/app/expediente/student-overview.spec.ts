@@ -15,6 +15,7 @@ const mockOverview: StudentOverview = {
   estatus_activo: true,
   student: {
     id: 10,
+    user_id: 30,
     matricula: 'DOC-2026-010',
     nombre_completo: 'Laura Méndez',
     programa_doctoral: 'Doctorado en Ciencias Computacionales',
@@ -112,6 +113,7 @@ const mockEmptyOverview: StudentOverview = {
   estatus_activo: false,
   student: {
     id: 10,
+    user_id: null,
     matricula: 'DOC-2026-010',
     nombre_completo: 'Juan Pérez',
     programa_doctoral: 'Doctorado en Educación',
