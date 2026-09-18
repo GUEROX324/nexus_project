@@ -7,11 +7,12 @@ import { StudentOverview } from '../core/academic/academic.models';
 import { AuthService } from '../core/auth/auth.service';
 import { SemesterFormComponent } from './semester-form';
 import { TutoringFormComponent } from './tutoring-form';
+import { TutoringAgreementsComponent } from './tutoring-agreements';
 import { EvidenceUploadComponent } from './evidence-upload';
 
 @Component({
   selector: 'app-student-overview',
-  imports: [CommonModule, RouterLink, SemesterFormComponent, TutoringFormComponent, EvidenceUploadComponent],
+  imports: [CommonModule, RouterLink, SemesterFormComponent, TutoringFormComponent, TutoringAgreementsComponent, EvidenceUploadComponent],
   templateUrl: './student-overview.html',
   styleUrl: './student-overview.scss',
 })

@@ -113,6 +113,12 @@ export interface Agreement {
   is_vencido: boolean;
 }
 
+export interface CreateSessionAgreementData {
+  descripcion: string;
+  responsable: number;
+  fecha_limite: string;
+}
+
 export interface EvidenceUploadData {
   student: number;
   semester: number | null;

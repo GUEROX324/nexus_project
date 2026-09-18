@@ -1,0 +1,61 @@
+<section class="agreements-panel" aria-label="Acuerdos de la tutoría">
+  <div class="agreements-header">
+    <h3>Acuerdos y compromisos</h3>
+    @if (sessions.length > 0) {
+      <label class="session-picker">
+        <span>Tutoría</span>
+        <select
+          [value]="selectedSessionId ?? ''"
+          (change)="onSessionChange($any($event.target).value)"
+          [disabled]="cargando"
+        >
+          @for (session of sessions; track session.id) {
+            <option [value]="session.id">
+              {{ session.fecha_sesion }} — {{ session.modalidad }}
+            </option>
+          }
+        </select>
+      </label>
+    }
+  </div>
+
+  @if (cargando) {
+    <p role="status">Cargando tutorías...</p>
+  } @else if (sessions.length === 0) {
+    <p class="empty-hint">Registre una tutoría para poder crear acuerdos.</p>
+  } @else {
+    @if (puedeRegistrar()) {
+      <form class="agreement-form" [formGroup]="form" (ngSubmit)="submit()" aria-label="Crear acuerdo">
+        <label>
+          Descripción del acuerdo
+          <textarea formControlName="descripcion" rows="3" maxlength="1000"></textarea>
+        </label>
+        <button type="submit" [disabled]="guardando || form.invalid">
+          {{ guardando ? 'Guardando...' : 'Crear acuerdo' }}
+        </button>
+      </form>
+    }
+
+    @if (exito) {
+      <p class="success-msg" role="status" aria-live="polite">{{ exito }}</p>
+    }
+    @if (error) {
+      <p class="error-msg" role="alert">{{ error }}</p>
+    }
+
+    @if (agreements.length === 0) {
+      <p class="empty-hint">Sin acuerdos en esta tutoría.</p>
+    } @else {
+      <ul class="agreement-list">
+        @for (a of agreements; track a.id) {
+          <li>
+            <div class="agr-top">
+              <p class="agr-desc">{{ a.descripcion }}</p>
+              <span class="badge">{{ a.estado }}</span>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>
