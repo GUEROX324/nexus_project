@@ -108,6 +108,24 @@ describe('AcademicService - Semesters (HU-05)', () => {
     });
   });
 
+  it('actualiza el estado de un acuerdo (HU-13)', () => {
+    service.updateAgreementStatus(101, 'EN_PROCESO', 'Inicio de avance').subscribe((agr) => {
+      expect(agr.estado).toBe('EN_PROCESO');
+    });
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/agreements/101/status/');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ estado: 'EN_PROCESO', comentario: 'Inicio de avance' });
+    req.flush({
+      id: 101,
+      descripcion: 'Entregar borrador',
+      fecha_limite: '2026-09-30',
+      estado: 'EN_PROCESO',
+      responsable: 20,
+      responsable_nombre: 'Asesor',
+      is_vencido: false,
+    });
+  });
+
   it('debe registrar un nuevo semestre (1 al 6)', () => {
     const newSem: CreateSemesterData = {
       numero: 2,

@@ -35,6 +35,7 @@ export class TutoringAgreementsComponent implements OnChanges {
   protected agreements: Agreement[] = [];
   protected cargando = false;
   protected guardando = false;
+  protected actualizandoId: number | null = null;
   protected error = '';
   protected exito = '';
 
@@ -55,6 +56,54 @@ export class TutoringAgreementsComponent implements OnChanges {
 
   protected puedeRegistrar(): boolean {
     return this.auth.hasPermission('tutoring.create');
+  }
+
+  /** HU-13: solo el responsable puede avanzar el estado. */
+  protected puedeActualizarEstado(agreement: Pick<Agreement, 'responsable' | 'estado'>): boolean {
+    const userId = this.auth.user()?.id;
+    if (!userId || agreement.responsable !== userId) return false;
+    return this.siguienteEstado(agreement.estado) != null;
+  }
+
+  protected etiquetaEstado(estado: string, isVencido = false): string {
+    if (isVencido && estado !== 'CONCLUIDO') return 'VENCIDO';
+    return estado.replaceAll('_', ' ');
+  }
+
+  protected etiquetaSiguiente(estado: string): string {
+    const next = this.siguienteEstado(estado);
+    return next ? `Pasar a ${this.etiquetaEstado(next)}` : '';
+  }
+
+  protected actualizarEstado(agreement: Agreement): void {
+    const next = this.siguienteEstado(agreement.estado);
+    if (!next || !this.puedeActualizarEstado(agreement) || this.actualizandoId != null) return;
+
+    this.actualizandoId = agreement.id;
+    this.error = '';
+    this.exito = '';
+    this.academic
+      .updateAgreementStatus(agreement.id, next)
+      .pipe(finalize(() => (this.actualizandoId = null)))
+      .subscribe({
+        next: () => {
+          this.exito = `Estado actualizado a ${this.etiquetaEstado(next)}.`;
+          this.cargarAcuerdos();
+          this.changed.emit();
+        },
+        error: (err) => {
+          this.error =
+            err.error?.estado?.[0] ||
+            err.error?.detail ||
+            'No fue posible actualizar el estado del acuerdo.';
+        },
+      });
+  }
+
+  private siguienteEstado(estado: string): 'EN_PROCESO' | 'CONCLUIDO' | null {
+    if (estado === 'PENDIENTE') return 'EN_PROCESO';
+    if (estado === 'EN_PROCESO') return 'CONCLUIDO';
+    return null;
   }
 
   protected minFechaLimite(): string {

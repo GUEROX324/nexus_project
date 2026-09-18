@@ -102,6 +102,7 @@
                     <th scope="col">Responsable</th>
                     <th scope="col">Fecha límite</th>
                     <th scope="col">Estado</th>
+                    <th scope="col">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -119,14 +120,34 @@
                             'badge-overdue': acuerdo.is_vencido
                           }"
                         >
-                          {{ acuerdo.is_vencido ? 'VENCIDO' : acuerdo.estado }}
+                          {{ etiquetaEstado(acuerdo.estado, acuerdo.is_vencido) }}
                         </span>
+                      </td>
+                      <td>
+                        @if (puedeActualizarAcuerdo(acuerdo)) {
+                          <button
+                            type="button"
+                            class="btn-status-sm"
+                            [disabled]="actualizandoAcuerdoId === acuerdo.id"
+                            (click)="actualizarEstadoAcuerdo(acuerdo)"
+                          >
+                            {{ actualizandoAcuerdoId === acuerdo.id ? '...' : etiquetaSiguienteAcuerdo(acuerdo.estado) }}
+                          </button>
+                        } @else {
+                          <span class="muted-action">—</span>
+                        }
                       </td>
                     </tr>
                   }
                 </tbody>
               </table>
             </div>
+            @if (exitoEstado) {
+              <p class="success-msg" role="status">{{ exitoEstado }}</p>
+            }
+            @if (errorEstado) {
+              <p class="error-msg" role="alert">{{ errorEstado }}</p>
+            }
           }
         </article>
 

@@ -27,6 +27,9 @@ export class StudentOverviewComponent implements OnInit {
   protected mostrarFormSemestre = false;
   protected mostrarFormTutoria = false;
   protected exitoTutoria = '';
+  protected actualizandoAcuerdoId: number | null = null;
+  protected errorEstado = '';
+  protected exitoEstado = '';
 
   ngOnInit(): void {
     this.studentId = Number(this.route.snapshot.paramMap.get('id'));
@@ -69,6 +72,52 @@ export class StudentOverviewComponent implements OnInit {
       push(member.id, member.nombre_completo, member.rol_comite || 'Comité');
     }
     return options;
+  }
+
+  protected etiquetaEstado(estado: string, isVencido = false): string {
+    if (isVencido && estado !== 'CONCLUIDO') return 'VENCIDO';
+    return estado.replaceAll('_', ' ');
+  }
+
+  protected puedeActualizarAcuerdo(acuerdo: { responsable: number; estado: string }): boolean {
+    const userId = this.auth.user()?.id;
+    if (!userId || acuerdo.responsable !== userId) return false;
+    return this.siguienteEstado(acuerdo.estado) != null;
+  }
+
+  protected etiquetaSiguienteAcuerdo(estado: string): string {
+    const next = this.siguienteEstado(estado);
+    return next ? `Pasar a ${this.etiquetaEstado(next)}` : '';
+  }
+
+  protected actualizarEstadoAcuerdo(acuerdo: { id: number; responsable: number; estado: string }): void {
+    const next = this.siguienteEstado(acuerdo.estado);
+    if (!next || !this.puedeActualizarAcuerdo(acuerdo) || this.actualizandoAcuerdoId != null) return;
+
+    this.actualizandoAcuerdoId = acuerdo.id;
+    this.errorEstado = '';
+    this.exitoEstado = '';
+    this.academicService
+      .updateAgreementStatus(acuerdo.id, next)
+      .pipe(finalize(() => (this.actualizandoAcuerdoId = null)))
+      .subscribe({
+        next: () => {
+          this.exitoEstado = `Estado actualizado a ${this.etiquetaEstado(next)}.`;
+          this.cargarExpediente();
+        },
+        error: (err) => {
+          this.errorEstado =
+            err.error?.estado?.[0] ||
+            err.error?.detail ||
+            'No fue posible actualizar el estado del acuerdo.';
+        },
+      });
+  }
+
+  private siguienteEstado(estado: string): 'EN_PROCESO' | 'CONCLUIDO' | null {
+    if (estado === 'PENDIENTE') return 'EN_PROCESO';
+    if (estado === 'EN_PROCESO') return 'CONCLUIDO';
+    return null;
   }
 
   semestreGuardado(): void { this.mostrarFormSemestre = false; this.cargarExpediente(); }

@@ -56,6 +56,19 @@ describe('TutoringAgreementsComponent (HU-11 / HU-12)', () => {
         is_vencido: false,
       }),
     ),
+    updateAgreementStatus: jasmine.createSpy('updateAgreementStatus').and.returnValue(
+      of({
+        id: 85,
+        student: 4,
+        session: 12,
+        descripcion: 'Entregar capítulo 3 preliminar completo.',
+        responsable: 2,
+        responsable_nombre: 'Roberto Gómez',
+        fecha_limite: '2026-09-30',
+        estado: 'EN_PROCESO' as const,
+        is_vencido: false,
+      }),
+    ),
   };
 
   const authStub = {
@@ -98,6 +111,7 @@ describe('TutoringAgreementsComponent (HU-11 / HU-12)', () => {
     expect(text).toContain('PENDIENTE');
     expect(text).toContain('Roberto Gómez');
     expect(text).toContain('2026-09-30');
+    expect(text).toContain('Pasar a EN PROCESO');
   });
 
   it('crea acuerdo con responsable y fecha explícitos (HU-12)', () => {
@@ -126,5 +140,28 @@ describe('TutoringAgreementsComponent (HU-11 / HU-12)', () => {
     component['submit']();
     expect(academicStub.createSessionAgreement).not.toHaveBeenCalled();
     expect(component['error']).toContain('fecha límite');
+  });
+
+  it('permite al responsable avanzar el estado (HU-13)', () => {
+    academicStub.updateAgreementStatus.calls.reset();
+    const agreement = component['agreements'][0];
+    expect(component['puedeActualizarEstado'](agreement)).toBeTrue();
+    component['actualizarEstado'](agreement);
+    expect(academicStub.updateAgreementStatus).toHaveBeenCalledWith(85, 'EN_PROCESO');
+  });
+
+  it('no muestra acción de estado si el usuario no es responsable (HU-13)', () => {
+    authStub.user.set({
+      id: 99,
+      email: 'otro@nexus.edu',
+      first_name: 'Otro',
+      last_name: 'Usuario',
+      role: 'TUTOR',
+      roles: ['TUTOR'],
+      permissions: ['tutoring.create', 'records.read.assigned'],
+    });
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent || '';
+    expect(text).not.toContain('Pasar a');
   });
 });

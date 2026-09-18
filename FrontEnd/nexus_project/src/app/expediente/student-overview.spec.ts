@@ -84,6 +84,7 @@ const mockOverview: StudentOverview = {
       descripcion: 'Entregar primer borrador de la propuesta',
       fecha_limite: '2026-09-20',
       estado: 'EN_PROCESO',
+      responsable: 30,
       responsable_nombre: 'Laura Méndez',
       is_vencido: false,
     },
@@ -252,7 +253,7 @@ describe('StudentOverviewComponent', () => {
 
     // 4. Open Agreements
     expect(text).toContain('Entregar primer borrador de la propuesta');
-    expect(text).toContain('EN_PROCESO');
+    expect(text).toContain('EN PROCESO');
 
     // 5. Thesis Progress
     expect(text).toContain('45%');

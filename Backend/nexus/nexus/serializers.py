@@ -308,6 +308,7 @@ class StudentOverviewSerializer(serializers.ModelSerializer):
                 'descripcion': a.descripcion,
                 'fecha_limite': str(a.fecha_limite),
                 'estado': a.estado,
+                'responsable': a.responsable_id,
                 'responsable_nombre': f"{a.responsable.first_name} {a.responsable.last_name}".strip() or a.responsable.email,
                 'is_vencido': a.is_vencido,
             }

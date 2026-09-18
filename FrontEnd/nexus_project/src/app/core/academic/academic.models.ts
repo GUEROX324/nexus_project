@@ -85,6 +85,7 @@ export interface StudentOverview {
     descripcion: string;
     fecha_limite: string;
     estado: string;
+    responsable: number;
     responsable_nombre: string;
     is_vencido: boolean;
   }[];

@@ -35,6 +35,10 @@ export class AcademicService {
     return this.http.post<Agreement>(`${API}/tutoring-sessions/${sessionId}/agreements/`, data);
   }
 
+  updateAgreementStatus(agreementId: number, estado: 'EN_PROCESO' | 'CONCLUIDO', comentario = ''): Observable<Agreement> {
+    return this.http.patch<Agreement>(`${API}/agreements/${agreementId}/status/`, { estado, comentario });
+  }
+
   getAgreements(filters: { page?: number; student?: number; estado?: string; vencido?: boolean } = {}): Observable<PaginatedResponse<Agreement>> {
     const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
     return this.http.get<PaginatedResponse<Agreement>>(`${API}/agreements/?${query}`);

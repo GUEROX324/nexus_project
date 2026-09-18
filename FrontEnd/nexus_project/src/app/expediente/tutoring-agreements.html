@@ -75,12 +75,22 @@
           <li>
             <div class="agr-top">
               <p class="agr-desc">{{ a.descripcion }}</p>
-              <span class="badge">{{ a.estado }}</span>
+              <span class="badge">{{ etiquetaEstado(a.estado, a.is_vencido) }}</span>
             </div>
             <div class="agr-meta">
               <span>Responsable: {{ a.responsable_nombre }}</span>
               <span>Fecha límite: {{ a.fecha_limite }}</span>
             </div>
+            @if (puedeActualizarEstado(a)) {
+              <button
+                type="button"
+                class="btn-status"
+                [disabled]="actualizandoId === a.id"
+                (click)="actualizarEstado(a)"
+              >
+                {{ actualizandoId === a.id ? 'Actualizando...' : etiquetaSiguiente(a.estado) }}
+              </button>
+            }
           </li>
         }
       </ul>
