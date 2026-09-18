@@ -558,4 +558,26 @@ $badge-overdue-text: #A14D98;
 .field-full { width: 100%; }
 .error-msg { color: var(--danger-text); margin-top: .5rem; }
 .success-msg { color: var(--badge-active-text); margin-top: .5rem; }
+
+.btn-status-sm {
+  background: #fff;
+  border: 1px solid #494ad5;
+  border-radius: 8px;
+  color: #494ad5;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 0.35rem 0.65rem;
+  white-space: nowrap;
+}
+
+.btn-status-sm:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.muted-action {
+  color: $text-muted;
+}
 caption { text-align: left; padding: .5rem; font-weight: 600; }

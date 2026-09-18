@@ -51,6 +51,7 @@ export interface StudentOverview {
   estatus_activo: boolean;
   student: {
     id: number;
+    user_id: number | null;
     matricula: string;
     nombre_completo: string;
     programa_doctoral: string;
@@ -84,6 +85,7 @@ export interface StudentOverview {
     descripcion: string;
     fecha_limite: string;
     estado: string;
+    responsable: number;
     responsable_nombre: string;
     is_vencido: boolean;
   }[];
@@ -111,6 +113,12 @@ export interface Agreement {
   fecha_limite: string;
   estado: 'PENDIENTE' | 'EN_PROCESO' | 'CONCLUIDO';
   is_vencido: boolean;
+}
+
+export interface CreateSessionAgreementData {
+  descripcion: string;
+  responsable: number;
+  fecha_limite: string;
 }
 
 export interface EvidenceUploadData {

@@ -15,6 +15,7 @@ const mockOverview: StudentOverview = {
   estatus_activo: true,
   student: {
     id: 10,
+    user_id: 30,
     matricula: 'DOC-2026-010',
     nombre_completo: 'Laura Méndez',
     programa_doctoral: 'Doctorado en Ciencias Computacionales',
@@ -83,6 +84,7 @@ const mockOverview: StudentOverview = {
       descripcion: 'Entregar primer borrador de la propuesta',
       fecha_limite: '2026-09-20',
       estado: 'EN_PROCESO',
+      responsable: 30,
       responsable_nombre: 'Laura Méndez',
       is_vencido: false,
     },
@@ -112,6 +114,7 @@ const mockEmptyOverview: StudentOverview = {
   estatus_activo: false,
   student: {
     id: 10,
+    user_id: null,
     matricula: 'DOC-2026-010',
     nombre_completo: 'Juan Pérez',
     programa_doctoral: 'Doctorado en Educación',
@@ -131,6 +134,45 @@ const mockEmptyOverview: StudentOverview = {
   thesis_progress: null,
   recent_academic_activity: [],
 };
+
+/** Flushes side HTTP calls from TutoringAgreementsComponent (HU-11). */
+function flushHu11SideRequests(http: HttpTestingController, preferredSessionId: number | null = 5): void {
+  const sessionPayload =
+    preferredSessionId == null
+      ? { count: 0, next: null, previous: null, results: [] as unknown[] }
+      : {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: preferredSessionId,
+              student: 10,
+              semester: 2,
+              fecha_sesion: '2026-09-05',
+              modalidad: 'PRESENCIAL',
+              resumen: 'Revisión del capítulo 2 de la tesis.',
+              created_by: 20,
+            },
+          ],
+        };
+
+  const sessionReqs = http.match((req) => req.urlWithParams.includes('/tutoring-sessions/?page=1'));
+  sessionReqs.forEach((req) => {
+    expect(req.request.method).toBe('GET');
+    req.flush(sessionPayload);
+  });
+
+  if (preferredSessionId == null) return;
+
+  const agrReqs = http.match(
+    (req) => req.url.includes(`/tutoring-sessions/${preferredSessionId}/agreements/`),
+  );
+  agrReqs.forEach((req) => {
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+}
 
 describe('StudentOverviewComponent', () => {
   let component: StudentOverviewComponent;
@@ -171,6 +213,8 @@ describe('StudentOverviewComponent', () => {
     fixture.detectChanges();
     const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockOverview);
+    fixture.detectChanges();
+    flushHu11SideRequests(http, 5);
   });
 
   it('carga y muestra los datos del estudiante (nombre, matrícula) y las 6 categorías', () => {
@@ -178,6 +222,8 @@ describe('StudentOverviewComponent', () => {
     const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     expect(req.request.method).toBe('GET');
     req.flush(mockOverview);
+    fixture.detectChanges();
+    flushHu11SideRequests(http, 5);
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent;
@@ -207,7 +253,7 @@ describe('StudentOverviewComponent', () => {
 
     // 4. Open Agreements
     expect(text).toContain('Entregar primer borrador de la propuesta');
-    expect(text).toContain('EN_PROCESO');
+    expect(text).toContain('EN PROCESO');
 
     // 5. Thesis Progress
     expect(text).toContain('45%');
@@ -234,6 +280,8 @@ describe('StudentOverviewComponent', () => {
     fixture.detectChanges();
     const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockEmptyOverview);
+    fixture.detectChanges();
+    flushHu11SideRequests(http, null);
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent;
@@ -271,6 +319,8 @@ describe('StudentOverviewComponent', () => {
     fixture.detectChanges();
     const req = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     req.flush(mockOverview);
+    fixture.detectChanges();
+    flushHu11SideRequests(http, 5);
     fixture.detectChanges();
 
     // Toggle form
@@ -312,6 +362,8 @@ describe('StudentOverviewComponent', () => {
     const reloadReq = http.expectOne('http://localhost:8000/api/v1/students/10/overview/');
     reloadReq.flush(mockOverview);
     fixture.detectChanges();
+    flushHu11SideRequests(http, 5);
+    fixture.detectChanges();
 
     expect(comp['mostrarFormSemestre']).toBeFalse();
   });
@@ -323,6 +375,8 @@ describe('StudentOverviewComponent', () => {
     });
     fixture.detectChanges();
     http.expectOne('http://localhost:8000/api/v1/students/10/overview/').flush(mockOverview);
+    fixture.detectChanges();
+    flushHu11SideRequests(http, 5);
     fixture.componentInstance['mostrarFormSemestre'] = true;
 
     fixture.detectChanges();
