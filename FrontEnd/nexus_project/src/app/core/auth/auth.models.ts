@@ -8,6 +8,7 @@ export interface AuthenticatedUser {
   role: UserRole;
   roles: UserRole[];
   permissions: Permission[];
+  /** ID del expediente Student (solo rol STUDENT). No confundir con id de usuario. */
   student_id?: number | null;
   grammatical_gender?: GrammaticalGender;
 }

@@ -121,13 +121,39 @@ export interface StudentOverview {
 export interface Agreement {
   id: number;
   student: number;
+  student_nombre?: string;
+  student_matricula?: string;
   session: number | null;
+  semester?: number | null;
+  semester_numero?: number | null;
   descripcion: string;
   responsable: number;
   responsable_nombre: string;
   fecha_limite: string;
-  estado: 'PENDIENTE' | 'EN_PROCESO' | 'CONCLUIDO';
+  estado: 'PENDIENTE' | 'EN_PROCESO' | 'CONCLUIDO' | 'VENCIDO';
   is_vencido: boolean;
+}
+
+export interface AgreementFilters {
+  page?: number;
+  page_size?: number;
+  student?: number;
+  semester?: number;
+  estado?: string;
+  responsable?: number;
+  vencido?: boolean;
+  fecha_limite?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}
+
+export interface AgreementAuditEntry {
+  id: number;
+  user: number | null;
+  estado_anterior: string;
+  estado_nuevo: string;
+  comentario: string;
+  fecha_cambio: string;
 }
 
 export interface CreateSessionAgreementData {

@@ -384,11 +384,24 @@ class AgreementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
             queryset = queryset.filter(student_id=student)
         if responsable := self.request.query_params.get('responsable'):
             queryset = queryset.filter(responsable_id=responsable)
+        if semester := self.request.query_params.get('semester'):
+            queryset = queryset.filter(session__semester_id=semester)
         if estado := self.request.query_params.get('estado'):
-            queryset = queryset.filter(estado=estado)
+            if estado == Agreement.Status.OVERDUE:
+                queryset = queryset.exclude(estado=Agreement.Status.COMPLETED).filter(
+                    fecha_limite__lt=timezone.localdate()
+                )
+            else:
+                queryset = queryset.filter(estado=estado)
         if self.request.query_params.get('vencido') == 'true':
             queryset = queryset.exclude(estado=Agreement.Status.COMPLETED).filter(fecha_limite__lt=timezone.localdate())
-        return queryset.select_related('student', 'responsable').distinct().order_by('fecha_limite', 'id')
+        if fecha_limite := self.request.query_params.get('fecha_limite'):
+            queryset = queryset.filter(fecha_limite=fecha_limite)
+        if fecha_desde := self.request.query_params.get('fecha_desde'):
+            queryset = queryset.filter(fecha_limite__gte=fecha_desde)
+        if fecha_hasta := self.request.query_params.get('fecha_hasta'):
+            queryset = queryset.filter(fecha_limite__lte=fecha_hasta)
+        return queryset.select_related('student', 'responsable', 'session', 'session__semester').distinct().order_by('fecha_limite', 'id')
 
     from rest_framework.decorators import action
 

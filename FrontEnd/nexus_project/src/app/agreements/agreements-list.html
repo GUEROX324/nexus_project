@@ -1,0 +1,173 @@
+<main class="agreements-shell">
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-badge">
+        <svg class="nexus-brand-icon" viewBox="0 0 12 10" width="14" height="12" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3.98125 3.0625l1.54583-3.0625 0.175 0 1.54584 3.0625-3.26667 0 0 0m1.19583 6.9125l-5.03125-6.0375 5.03125 0 0 6.0375 0 0m0.875 0l0-6.0375 5.03125 0-5.03125 6.0375 0 0m2.15834-6.9125l-1.51667-3.0625 3.00417 0 1.53125 3.0625-3.01875 0 0 0m-8.21042 0l1.53125-3.0625 3.00417 0-1.51667 3.0625-3.01875 0 0 0" fill="currentColor"/>
+        </svg>
+        <span>N.E.X.U.S.</span>
+      </div>
+      <h1>Acuerdos pendientes y vencidos</h1>
+    </div>
+    <a routerLink="/home" class="btn-return">Volver al inicio</a>
+  </header>
+
+  <section class="filters-panel" aria-label="Filtros de acuerdos">
+    <div class="filters-grid">
+      <label>
+        <span>Estudiante</span>
+        <select [(ngModel)]="filtroStudent" (ngModelChange)="onStudentChange()" [disabled]="auth.user()?.role === 'STUDENT'">
+          <option value="">Todos</option>
+          @for (est of students; track est.id) {
+            <option [value]="est.id">{{ est.matricula ? est.matricula + ' — ' : '' }}{{ est.nombre_completo }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        <span>Semestre</span>
+        <select [(ngModel)]="filtroSemester" [disabled]="!filtroStudent">
+          <option value="">Todos</option>
+          @for (sem of semesters; track sem.id) {
+            <option [value]="sem.id">Semestre {{ sem.numero }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        <span>Estado</span>
+        <select [(ngModel)]="filtroEstado">
+          <option value="">Todos</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="EN_PROCESO">En proceso</option>
+          <option value="CONCLUIDO">Concluido</option>
+          <option value="VENCIDO">Vencido</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Responsable</span>
+        <select [(ngModel)]="filtroResponsable">
+          <option value="">Todos</option>
+          @for (r of responsables; track r.id) {
+            <option [value]="r.id">{{ r.nombre }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        <span>Fecha desde</span>
+        <input type="date" [(ngModel)]="filtroFechaDesde" />
+      </label>
+
+      <label>
+        <span>Fecha hasta</span>
+        <input type="date" [(ngModel)]="filtroFechaHasta" />
+      </label>
+    </div>
+
+    <div class="filters-actions">
+      <button type="button" class="btn-primary" (click)="aplicarFiltros()">Aplicar filtros</button>
+      <button type="button" class="btn-secondary" (click)="limpiarFiltros()">Limpiar</button>
+    </div>
+  </section>
+
+  <section class="results-panel" aria-label="Listado de acuerdos">
+    <div class="section-header">
+      <h2>Compromisos abiertos</h2>
+      <span class="count-badge">{{ total }} encontrados</span>
+    </div>
+
+    @if (cargando) {
+      <p class="loading-hint" role="status">Cargando acuerdos...</p>
+    } @else if (error) {
+      <div class="error-card" role="alert">
+        <p>{{ error }}</p>
+        <button type="button" (click)="aplicarFiltros()">Reintentar</button>
+      </div>
+    } @else if (agreements.length === 0) {
+      <div class="empty-card">
+        <p>No hay acuerdos con los filtros seleccionados.</p>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table class="agreements-table">
+          <caption>Acuerdos académicos filtrados</caption>
+          <thead>
+            <tr>
+              <th scope="col">Estudiante</th>
+              <th scope="col">Descripción</th>
+              <th scope="col">Semestre</th>
+              <th scope="col">Responsable</th>
+              <th scope="col">Fecha límite</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of agreements; track a.id) {
+              <tr>
+                <td>
+                  <div class="student-cell">
+                    <strong>{{ a.student_nombre || ('Estudiante #' + a.student) }}</strong>
+                    @if (a.student_matricula) {
+                      <span class="mono">{{ a.student_matricula }}</span>
+                    }
+                  </div>
+                </td>
+                <td>{{ a.descripcion }}</td>
+                <td>{{ a.semester_numero != null ? ('S' + a.semester_numero) : '—' }}</td>
+                <td>{{ a.responsable_nombre }}</td>
+                <td class="mono">{{ a.fecha_limite }}</td>
+                <td>
+                  <span class="badge" [class]="badgeClass(a)">{{ estadoVisible(a) }}</span>
+                </td>
+                <td>
+                  <button type="button" class="btn-link" (click)="verAuditoria(a)">Bitácora</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <nav class="paginator" aria-label="Paginación de acuerdos">
+        <button type="button" (click)="irPagina(pagina - 1)" [disabled]="pagina === 1 || cargando">Anterior</button>
+        <span>Página {{ pagina }}</span>
+        <button type="button" (click)="irPagina(pagina + 1)" [disabled]="!haySiguiente || cargando">Siguiente</button>
+      </nav>
+    }
+  </section>
+</main>
+
+@if (auditOpen) {
+  <div class="audit-backdrop" (click)="cerrarAuditoria()" role="presentation"></div>
+  <aside class="audit-drawer" role="dialog" aria-modal="true" aria-label="Bitácora del acuerdo">
+    <div class="audit-header">
+      <h2>Bitácora del acuerdo</h2>
+      <button type="button" class="btn-secondary" (click)="cerrarAuditoria()">Cerrar</button>
+    </div>
+    @if (auditAgreement) {
+      <p class="audit-desc">{{ auditAgreement.descripcion }}</p>
+    }
+    @if (auditLoading) {
+      <p role="status">Cargando bitácora...</p>
+    } @else if (auditError) {
+      <p class="error-text" role="alert">{{ auditError }}</p>
+    } @else if (auditEntries.length === 0) {
+      <p class="empty-hint">Sin cambios registrados aún.</p>
+    } @else {
+      <ul class="audit-list">
+        @for (entry of auditEntries; track entry.id) {
+          <li>
+            <strong>{{ entry.estado_anterior }} → {{ entry.estado_nuevo }}</strong>
+            <span>{{ entry.fecha_cambio | date: 'medium' }}</span>
+            @if (entry.comentario) {
+              <p>{{ entry.comentario }}</p>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </aside>
+}

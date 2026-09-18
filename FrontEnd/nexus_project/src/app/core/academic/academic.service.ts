@@ -11,6 +11,8 @@ import {
   CreateSemesterData,
   StudentOverview,
   Agreement,
+  AgreementFilters,
+  AgreementAuditEntry,
   CreateSessionAgreementData,
   Evidence,
   EvidenceUploadData,
@@ -63,9 +65,17 @@ export class AcademicService {
     return this.http.patch<Agreement>(`${API}/agreements/${agreementId}/status/`, { estado, comentario });
   }
 
-  getAgreements(filters: { page?: number; student?: number; estado?: string; vencido?: boolean } = {}): Observable<PaginatedResponse<Agreement>> {
-    const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
+  getAgreements(filters: AgreementFilters = {}): Observable<PaginatedResponse<Agreement>> {
+    const query = new URLSearchParams(
+      Object.entries(filters)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .map(([key, value]) => [key, String(value)]),
+    );
     return this.http.get<PaginatedResponse<Agreement>>(`${API}/agreements/?${query}`);
+  }
+
+  getAgreementAuditLog(agreementId: number): Observable<AgreementAuditEntry[]> {
+    return this.http.get<AgreementAuditEntry[]>(`${API}/agreements/${agreementId}/audit-log/`);
   }
 
   getGlobalOverview(page = 1): Observable<PaginatedResponse<StudentRecord>> {

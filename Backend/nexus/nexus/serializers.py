@@ -477,15 +477,32 @@ class AgreementStatusSerializer(serializers.Serializer):
 
 class AgreementSerializer(serializers.ModelSerializer):
     responsable_nombre = serializers.SerializerMethodField()
+    student_nombre = serializers.CharField(source='student.nombre_completo', read_only=True)
+    student_matricula = serializers.CharField(source='student.matricula', read_only=True)
+    semester = serializers.SerializerMethodField()
+    semester_numero = serializers.SerializerMethodField()
     is_vencido = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Agreement
-        fields = ('id', 'session', 'student', 'descripcion', 'responsable', 'responsable_nombre', 'fecha_limite', 'estado', 'fecha_conclusion', 'is_vencido', 'created_by', 'created_at')
+        fields = (
+            'id', 'session', 'student', 'student_nombre', 'student_matricula',
+            'semester', 'semester_numero', 'descripcion', 'responsable',
+            'responsable_nombre', 'fecha_limite', 'estado', 'fecha_conclusion',
+            'is_vencido', 'created_by', 'created_at',
+        )
         read_only_fields = ('id', 'student', 'estado', 'fecha_conclusion', 'created_by', 'created_at')
 
     def get_responsable_nombre(self, agreement):
         return f'{agreement.responsable.first_name} {agreement.responsable.last_name}'.strip() or agreement.responsable.email
+
+    def get_semester(self, agreement):
+        return agreement.session.semester_id if agreement.session_id else None
+
+    def get_semester_numero(self, agreement):
+        if agreement.session_id and agreement.session and agreement.session.semester_id:
+            return agreement.session.semester.numero
+        return None
 
     def validate_descripcion(self, value):
         if not value.strip():

@@ -57,8 +57,19 @@ describe('AcademicService - Semesters (HU-05)', () => {
   });
 
   it('combina filtros en el endpoint v1 paginado de acuerdos (HU-14)', () => {
-    service.getAgreements({ page: 2, student: 10, estado: 'PENDIENTE', vencido: true }).subscribe();
-    const req = httpMock.expectOne('http://localhost:8000/api/v1/agreements/?page=2&student=10&estado=PENDIENTE&vencido=true');
+    service.getAgreements({
+      page: 2,
+      student: 10,
+      semester: 3,
+      estado: 'PENDIENTE',
+      responsable: 7,
+      vencido: true,
+      fecha_desde: '2026-01-01',
+      fecha_hasta: '2026-12-31',
+    }).subscribe();
+    const req = httpMock.expectOne(
+      'http://localhost:8000/api/v1/agreements/?page=2&student=10&semester=3&estado=PENDIENTE&responsable=7&vencido=true&fecha_desde=2026-01-01&fecha_hasta=2026-12-31',
+    );
     expect(req.request.method).toBe('GET');
     req.flush({ count: 0, next: null, previous: null, results: [] });
   });
@@ -93,6 +104,15 @@ describe('AcademicService - Semesters (HU-05)', () => {
     expect(createReq.request.method).toBe('POST');
     expect(createReq.request.body).toEqual(payload);
     createReq.flush({ id: 2, session: 12, autor: 2, autor_nombre: 'Dr. Roberto', ...payload, created_at: '2026-09-15T12:00:00Z' });
+  });
+
+  it('consulta la bitácora de un acuerdo (HU-14)', () => {
+    service.getAgreementAuditLog(85).subscribe((entries) => {
+      expect(entries.length).toBe(1);
+    });
+    const req = httpMock.expectOne('http://localhost:8000/api/v1/agreements/85/audit-log/');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 1, user: 2, estado_anterior: 'PENDIENTE', estado_nuevo: 'EN_PROCESO', comentario: '', fecha_cambio: '2026-09-01T10:00:00Z' }]);
   });
 
   it('lista tutorías paginadas (HU-11)', () => {
